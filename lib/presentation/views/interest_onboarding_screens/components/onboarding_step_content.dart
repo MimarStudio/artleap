@@ -1,8 +1,9 @@
+import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
 import 'contionus_button.dart';
 import 'option_card.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
-class OnboardingStepContent extends StatelessWidget {
+class OnboardingStepContent extends ConsumerWidget {
   final OnboardingStepData stepData;
   final int currentStep;
   final int? selectedIndex;
@@ -21,22 +22,26 @@ class OnboardingStepContent extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final mediaQuery = MediaQuery.of(context);
     final isSmallScreen = mediaQuery.size.width < 600;
     final safePadding = mediaQuery.padding;
 
+    if (isLastStep) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+      });
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min, // ✅ IMPORTANT
+        mainAxisSize: MainAxisSize.min,
         children: [
           _buildStepIndicator(currentStep + 1, theme),
-
           const SizedBox(height: 20),
-
           Text(
             stepData.title,
             style: AppTextstyle.interBold(
@@ -44,9 +49,7 @@ class OnboardingStepContent extends StatelessWidget {
               color: theme.colorScheme.onSurface,
             ),
           ),
-
           const SizedBox(height: 8),
-
           Text(
             stepData.subtitle,
             style: AppTextstyle.interRegular(
@@ -71,15 +74,12 @@ class OnboardingStepContent extends StatelessWidget {
               );
             },
           ),
-
           const SizedBox(height: 16.0),
-
           ContinueButton(
             isEnabled: selectedIndex != null,
             onPressed: onContinue,
             isLastStep: isLastStep,
           ),
-
           SizedBox(height: safePadding.bottom),
         ],
       ),

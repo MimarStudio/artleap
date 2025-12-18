@@ -90,122 +90,148 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       resizeToAvoidBottomInset: false,
-      bottomNavigationBar: isKeyboardOpen
-          ? const SizedBox.shrink()
-          : _buildModernNavBar(pageIndex, theme),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: (pageIndex >= 0 && pageIndex < bottomNavBarState.widgets.length)
-                ? bottomNavBarState.widgets[pageIndex]
-                : Center(
-              child: CircularProgressIndicator(
-                color: theme.colorScheme.primary,
+          Column(
+            children: [
+              Expanded(
+                child: (pageIndex >= 0 && pageIndex < bottomNavBarState.widgets.length)
+                    ? bottomNavBarState.widgets[pageIndex]
+                    : Center(
+                  child: CircularProgressIndicator(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ),
-            ),
+              // Spacer for the bottom section
+              if (!isKeyboardOpen)
+                SizedBox(height: _getBottomSectionHeight(context)),
+            ],
           ),
-          if (!isKeyboardOpen) const BannerAdWidget(),
+          if (!isKeyboardOpen)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildBottomSection(theme, pageIndex, context),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildModernNavBar(int currentIndex, ThemeData theme) {
+  double _getBottomSectionHeight(BuildContext context) {
+    final navBarHeight = 80.0 + 24.0;
+    final bannerHeight = MediaQuery.of(context).size.width * 0.15;
+    return navBarHeight + bannerHeight;
+  }
+
+  Widget _buildBottomSection(ThemeData theme, int currentIndex, BuildContext context) {
     return SafeArea(
       top: false,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.onSurface.withOpacity(0.15),
-              blurRadius: 30,
-              spreadRadius: 2,
-              offset: const Offset(0, 12),
-            ),
-            BoxShadow(
-              color: theme.colorScheme.onSurface.withOpacity(0.08),
-              blurRadius: 15,
-              spreadRadius: -5,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              height: 80,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface.withOpacity(0.92),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: theme.colorScheme.onSurface.withOpacity(0.1),
-                  width: 1.2,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.colorScheme.onSurface.withOpacity(0.15),
+                  blurRadius: 30,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 12),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildSideNavigationItem(
-                          icon: FeatherIcons.home,
-                          label: 'Home',
-                          index: 0,
-                          currentIndex: currentIndex,
-                          theme: theme,
-                          isLeft: true,
-                        ),
-                        _buildSideNavigationItem(
-                          icon: FeatherIcons.edit3,
-                          label: 'Create',
-                          index: 1,
-                          currentIndex: currentIndex,
-                          theme: theme,
-                          isLeft: true,
-                        ),
-                      ],
+                BoxShadow(
+                  color: theme.colorScheme.onSurface.withOpacity(0.08),
+                  blurRadius: 15,
+                  spreadRadius: -5,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface.withOpacity(0.92),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: theme.colorScheme.onSurface.withOpacity(0.1),
+                      width: 1.2,
                     ),
                   ),
-                  _buildCenterNavigationItem(
-                    icon: FeatherIcons.users,
-                    label: 'Community',
-                    index: 2,
-                    currentIndex: currentIndex,
-                    theme: theme,
-                  ),
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildSideNavigationItem(
-                          icon: FeatherIcons.video,
-                          label: 'Reels',
-                          index: 3,
-                          currentIndex: currentIndex,
-                          theme: theme,
-                          isLeft: false,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildSideNavigationItem(
+                              icon: FeatherIcons.home,
+                              label: 'Home',
+                              index: 0,
+                              currentIndex: currentIndex,
+                              theme: theme,
+                              isLeft: true,
+                            ),
+                            _buildSideNavigationItem(
+                              icon: FeatherIcons.edit3,
+                              label: 'Create',
+                              index: 1,
+                              currentIndex: currentIndex,
+                              theme: theme,
+                              isLeft: true,
+                            ),
+                          ],
                         ),
-                        _buildSideNavigationItem(
-                          icon: FeatherIcons.user,
-                          label: 'Profile',
-                          index: 4,
-                          currentIndex: currentIndex,
-                          theme: theme,
-                          isLeft: false,
+                      ),
+                      _buildCenterNavigationItem(
+                        icon: FeatherIcons.users,
+                        label: 'Community',
+                        index: 2,
+                        currentIndex: currentIndex,
+                        theme: theme,
+                      ),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildSideNavigationItem(
+                              icon: FeatherIcons.video,
+                              label: 'Reels',
+                              index: 3,
+                              currentIndex: currentIndex,
+                              theme: theme,
+                              isLeft: false,
+                            ),
+                            _buildSideNavigationItem(
+                              icon: FeatherIcons.user,
+                              label: 'Profile',
+                              index: 4,
+                              currentIndex: currentIndex,
+                              theme: theme,
+                              isLeft: false,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+          // Banner Ad below the navigation bar
+          Container(
+            color: theme.colorScheme.surface, // Optional: Add background color if needed
+            child: const BannerAdWidget(),
+          ),
+        ],
       ),
     );
   }

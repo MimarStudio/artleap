@@ -128,15 +128,6 @@ class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScr
       body: SafeArea(
         child: Column(
           children: [
-            // Native Ad at the TOP
-            if (adState.showAds && adState.isLoaded && adState.nativeAds.isNotEmpty)
-              _buildNativeAdWidget(
-                adState,
-                currentStep,
-                isSmallScreen,
-                context,
-              ),
-
             Padding(
               padding:
               const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -151,6 +142,13 @@ class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScr
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (adState.showAds && adState.isLoaded && adState.nativeAds.isNotEmpty)
+                        _buildNativeAdWidget(
+                          adState,
+                          currentStep,
+                          isSmallScreen,
+                          context,
+                        ),
                       Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: isSmallScreen ? 16.0 : 32.0,
@@ -196,7 +194,6 @@ class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScr
       return const SizedBox.shrink();
     }
 
-    // Use a consistent ad for this screen or cycle through available ads
     final index = currentStep % adState.nativeAds.length;
     final ad = adState.nativeAds[index];
 
@@ -206,21 +203,9 @@ class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScr
         vertical: 8,
       ),
       child: Container(
-        height: 100, // Adjust height as needed
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Theme.of(context).cardColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: AdWidget(ad: ad),
-        ),
+        height: 320,
+        padding: const EdgeInsets.all(12),
+        child: AdWidget(ad: ad),
       ),
     );
   }

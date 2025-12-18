@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/rendering.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final isLoadingProvider = StateProvider<bool>((ref) => false);
 final adPreloadedProvider = StateProvider<bool>((ref) => false);
@@ -32,19 +31,34 @@ class _PromptCreateScreenRedesignState
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   bool _adDialogShown = false;
+  bool _isMounted = false;
 
   @override
   void initState() {
     super.initState();
+    _isMounted = true;
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      AnalyticsService.instance.logScreenView(screenName: 'generating screen');
+      if (!_isMounted) return;
+      try {
+        AnalyticsService.instance
+            .logScreenView(screenName: 'generating screen');
+        await AdHelper.preloadRewardedAd(ref);
+        if (!_isMounted) return;
 
-      await AdHelper.preloadRewardedAd(ref);
-
-      final userProfile = ref.read(userProfileProvider).value!.userProfile;
-      if (userProfile != null && userProfile.user.totalCredits == 0) {
-        _showCreditsDialog();
+        final userProfile = ref.read(userProfileProvider).valueOrNull?.userProfile;
+        final profileState = ref.read(userProfileProvider).valueOrNull;
+        final planName = profileState?.userProfile?.user.planName.toLowerCase() ?? 'free';
+        final isFreeUser = planName == 'free';
+        RemoteConfigService.instance.updateUserPlan(
+          isFreeUser: isFreeUser,
+        );
+        if (userProfile != null && userProfile.user.totalCredits == 0) {
+          _showCreditsDialog();
+        }
+      } catch (e) {
+        // Handle error gracefully
+        debugPrint('Error in initState callback: $e');
       }
     });
 
@@ -68,6 +82,8 @@ class _PromptCreateScreenRedesignState
   }
 
   void _handleScroll() {
+    if (!_isMounted) return;
+
     if (_scrollController.position.userScrollDirection ==
         ScrollDirection.forward) {
       FocusScope.of(context).unfocus();
@@ -77,6 +93,7 @@ class _PromptCreateScreenRedesignState
 
   @override
   void dispose() {
+    _isMounted = false; // Set to false when disposing
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _animationController.dispose();
@@ -89,15 +106,19 @@ class _PromptCreateScreenRedesignState
   }
 
   void _handleGenerate() async {
+    if (!_isMounted) return;
+
     final theme = Theme.of(context);
-    final userProfile = ref.watch(userProfileProvider).value!.userProfile;
+    final userProfile = ref.read(userProfileProvider).valueOrNull?.userProfile;
     final generateImageProviderState = ref.watch(generateImageProvider);
 
     if (userProfile == null || userProfile.user.totalCredits <= 0) {
       if (!_adDialogShown) {
         _adDialogShown = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _showCreditsDialog();
+          if (_isMounted) {
+            _showCreditsDialog();
+          }
         });
       }
       return;
@@ -105,6 +126,7 @@ class _PromptCreateScreenRedesignState
 
     final isNetworkAvailable = await _checkNetworkAvailability();
     if (!isNetworkAvailable) {
+      if (!_isMounted) return;
       appSnackBar(
         "No Internet Connection",
         "Please check your network connection and try again",
@@ -114,6 +136,7 @@ class _PromptCreateScreenRedesignState
     }
 
     if (generateImageProviderState.containsSexualWords) {
+      if (!_isMounted) return;
       appSnackBar(
         "Warning!",
         "Your prompt contains sexual words.",
@@ -127,6 +150,7 @@ class _PromptCreateScreenRedesignState
 
     if (generateImageProviderState.selectedImageNumber == null &&
         generateImageProviderState.images.isEmpty) {
+      if (!_isMounted) return;
       appSnackBar(
         "Error",
         "Please select number of images",
@@ -137,6 +161,7 @@ class _PromptCreateScreenRedesignState
 
     final promptText = generateImageProviderState.promptTextController.text;
     if (!_isValidPrompt(promptText)) {
+      if (!_isMounted) return;
       appSnackBar(
         "Error",
         "Please write a meaningful prompt",
@@ -150,6 +175,7 @@ class _PromptCreateScreenRedesignState
         (isTextToImage ? 2 : 24);
 
     if (userProfile.user.totalCredits < requiredCredits) {
+      if (!_isMounted) return;
       appSnackBar(
         "Insufficient Credits",
         "You need $requiredCredits credits to generate ${generateImageProviderState.selectedImageNumber} ${isTextToImage ? 'images' : 'variations'}",
@@ -167,7 +193,7 @@ class _PromptCreateScreenRedesignState
 
     if (isTextToImage) {
       success =
-      await ref.read(generateImageProvider.notifier).generateTextToImage();
+          await ref.read(generateImageProvider.notifier).generateTextToImage();
       if (!success) {
         success = await ref
             .read(generateImageProvider.notifier)
@@ -177,12 +203,14 @@ class _PromptCreateScreenRedesignState
       await ref.read(generateImageProvider.notifier).generateImgToImg();
     }
 
+    if (!_isMounted) return;
+
     ref.read(isLoadingProvider.notifier).state = false;
     _animationController.reverse();
 
-    if (success && mounted) {
+    if (success && _isMounted) {
       Navigation.pushNamed(ResultScreenRedesign.routeName);
-    } else if (mounted) {
+    } else if (_isMounted) {
       appSnackBar(
         "Error",
         "Failed to Generate Image",
@@ -192,7 +220,9 @@ class _PromptCreateScreenRedesignState
   }
 
   void _showCreditsDialog() {
-    final userProfile = ref.read(userProfileProvider).value!.userProfile;
+    if (!_isMounted) return;
+
+    final userProfile = ref.read(userProfileProvider).valueOrNull?.userProfile;
     final planName = userProfile?.user.planName ?? 'Free';
     final isFreePlan = planName.toLowerCase() == 'free';
 
@@ -220,19 +250,26 @@ class _PromptCreateScreenRedesignState
   }
 
   Future<void> _showRewardedAd() async {
+    if (!_isMounted) return;
+
     await AdHelper.showRewardedAd(
       ref: ref,
       onRewardEarned: (coins) {
+        if (!_isMounted) return;
         AdHelper.showRewardSuccessSnackbar(context, coins);
         AdHelper.refreshUserProfileAfterReward(ref);
         _adDialogShown = false;
       },
       onAdDismissed: () {
+        if (!_isMounted) return;
+
         final adNotifier = ref.read(rewardedAdNotifierProvider.notifier);
         adNotifier.loadAd();
         _adDialogShown = false;
       },
       onAdFailed: () {
+        if (!_isMounted) return;
+
         AdHelper.showAdErrorSnackbar(
           context,
           'Failed to show ad. Please try again.',
@@ -240,6 +277,8 @@ class _PromptCreateScreenRedesignState
         _adDialogShown = false;
 
         Future.delayed(const Duration(seconds: 2), () {
+          if (!_isMounted) return;
+
           final adNotifier = ref.read(rewardedAdNotifierProvider.notifier);
           adNotifier.loadAd();
         });
@@ -249,27 +288,39 @@ class _PromptCreateScreenRedesignState
 
   @override
   Widget build(BuildContext context) {
+    if (!_isMounted)
+      return const SizedBox(); // Return empty widget if not mounted
+
     final theme = Theme.of(context);
     final shouldRefresh = ref.watch(refreshProvider);
     final isLoading = ref.watch(isLoadingProvider);
     final screenSize = getScreenSizeCategory(context);
-    final planName =
-        ref.watch(userProfileProvider).value!.userProfile!.user.planName ?? 'Free';
+    final planName = ref
+            .watch(userProfileProvider)
+            .valueOrNull
+            ?.userProfile
+            ?.user
+            .planName ??
+        'Free';
     final isFreePlan = planName.toLowerCase() == 'free';
     final isKeyboardVisible = ref.watch(keyboardVisibleProvider);
 
     if (shouldRefresh && UserData.ins.userId != null) {
       Future.microtask(() {
-        ref.read(userProfileProvider.notifier).getUserProfileData(UserData.ins.userId!);
+        if (_isMounted) {
+          ref
+              .read(userProfileProvider.notifier)
+              .getUserProfileData(UserData.ins.userId!);
+        }
       });
     }
 
     final horizontalPadding = screenSize == ScreenSizeCategory.small ||
-        screenSize == ScreenSizeCategory.extraSmall
+            screenSize == ScreenSizeCategory.extraSmall
         ? 16.0
         : 24.0;
     final topPadding = screenSize == ScreenSizeCategory.small ||
-        screenSize == ScreenSizeCategory.extraSmall
+            screenSize == ScreenSizeCategory.extraSmall
         ? 16.0
         : 24.0;
 
@@ -316,14 +367,14 @@ class _PromptCreateScreenRedesignState
                         onImageSelected: () {
                           AnalyticsService.instance.logButtonClick(
                             buttonName:
-                            'picking image from gallery button event',
+                                'picking image from gallery button event',
                           );
                         },
                         isPremiumUser: !isFreePlan,
                       ),
                       SizedBox(
                           height: screenSize == ScreenSizeCategory.small ||
-                              screenSize == ScreenSizeCategory.extraSmall
+                                  screenSize == ScreenSizeCategory.extraSmall
                               ? 100.0
                               : 120.0),
                     ],

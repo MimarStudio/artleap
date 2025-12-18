@@ -17,42 +17,10 @@ class ContinueButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
-    // ✅ LISTEN ONCE – correct place
-    ref.listen<InterstitialAdState>(
-      interstitialAdStateProvider,
-          (previous, next) {
-        // Ad finished showing → now navigate
-        if (previous?.isShowing == true &&
-            next.isShowing == false &&
-            isLastStep) {
-          onPressed();
-        }
-      },
-    );
-
-    Future<void> _handlePress() async {
-      if (!isEnabled) return;
-
-      if (!isLastStep) {
-        onPressed();
-        return;
-      }
-
-      // 🚀 Request ad
-      final didRequest =
-      await ref.read(interstitialAdStateProvider.notifier)
-          .showInterstitialAd();
-
-      // ❌ No ad available → navigate immediately
-      if (!didRequest) {
-        onPressed();
-      }
-    }
-
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: isEnabled ? _handlePress : null,
+        onPressed: isEnabled ? () => _handlePress(ref) : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: theme.colorScheme.primary,
           foregroundColor: theme.colorScheme.onPrimary,
@@ -95,5 +63,33 @@ class ContinueButton extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _handlePress(WidgetRef ref) async {
+    if (isLastStep) {
+      final adState = ref.read(interstitialAdStateProvider);
+      if (adState.isLoaded) {
+        final adShown = await ref.read(interstitialAdStateProvider.notifier).showInterstitialAd();
+        if (!adShown) {
+          onPressed();
+        } else {
+          ref.listen<InterstitialAdState>(
+            interstitialAdStateProvider,
+                (previous, next) {
+              if (previous?.isShowing == true && next.isShowing == false) {
+                onPressed();
+                ref
+                  ..read(interstitialAdStateProvider)
+                  ..read(interstitialAdStateProvider.notifier);
+              }
+            },
+          );
+        }
+      } else {
+        onPressed();
+      }
+    } else {
+      onPressed();
+    }
   }
 }
