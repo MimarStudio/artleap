@@ -27,6 +27,27 @@ class PurchaseHandler {
     }
   }
 
+  Future<void> _syncUserAfterPurchase(String userId) async {
+    try {
+      ref.refresh(currentSubscriptionProvider(userId));
+      final profileNotifier = ref.read(userProfileProvider.notifier);
+      await profileNotifier.getUserProfileData(userId);
+      final profileState = ref.read(userProfileProvider).valueOrNull;
+      final planName = profileState?.userProfile?.user.planName.toLowerCase() ?? 'free';
+
+      RemoteConfigService.instance.updateUserPlan(
+        isFreeUser: planName == 'free',
+      );
+      await profileNotifier.updateUserCredits();
+
+      debugPrint('✅ User sync after purchase completed');
+    } catch (e, stack) {
+      debugPrint('❌ Post-purchase sync failed: $e');
+      debugPrint(stack.toString());
+    }
+  }
+
+
   Future<void> _processPurchase(
       PurchaseDetails purchaseDetails,
       String? basePlanId,
@@ -108,6 +129,8 @@ class PurchaseHandler {
           appSnackBar('Success', 'Subscription restored successfully', backgroundColor:AppColors.green);
         }
         await _completePurchase(purchaseDetails);
+
+        await _syncUserAfterPurchase(userId);
         ref.refresh(currentSubscriptionProvider(userId));
       } else {
         appSnackBar('Error', 'Subscription failed: ${response.message}', backgroundColor:AppColors.red);

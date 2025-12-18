@@ -23,36 +23,49 @@ class PostCard extends ConsumerStatefulWidget {
   ConsumerState<PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends ConsumerState<PostCard> {
+class _PostCardState extends ConsumerState<PostCard> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+    return Semantics(
+      container: true,
+      child: RepaintBoundary(
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.shadow.withOpacity(0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PostHeader(image: widget.image, profilePic: widget.profileImage),
-          PostImage(
-            image: widget.image,
-            homeProvider: widget.homeProvider,
-            index: widget.index,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PostHeader(
+                image: widget.image,
+                profilePic: widget.profileImage,
+              ),
+              PostImage(
+                image: widget.image,
+                homeProvider: widget.homeProvider,
+                index: widget.index,
+              ),
+              PostActions(image: widget.image),
+              PostDescription(image: widget.image),
+              CommentsSection(image: widget.image),
+            ],
           ),
-          PostActions(image: widget.image),
-          PostDescription(image: widget.image),
-          CommentsSection(image: widget.image),
-        ],
+        ),
       ),
     );
   }

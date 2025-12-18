@@ -18,15 +18,17 @@ class CommunityFeedWidget extends ConsumerStatefulWidget {
 
 class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
   final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<bool> _shouldLoadNewAd = ValueNotifier(false);
+  final _adPositions = <int>{};
+  final _itemKeys = <String, GlobalKey>{};
 
-  bool _shouldLoadNewAd = false;
-  bool _isFirstBuild = true;
-  bool _isScrollControllerAttached = false;
+  static const int _adFrequency = 7;
+  static const double _scrollThreshold = 300.0;
+  static const double _adLoadThreshold = 0.7;
 
   late NativeAdNotifier _nativeAdNotifier;
-
-  final Set<int> _adPositions = {};
-  final int _adFrequency = 4;
+  late final _postsProvider = ref.read(homeScreenProvider);
+  late final _userProfileNotifier = ref.read(userProfileProvider.notifier);
 
   @override
   void initState() {
@@ -34,39 +36,33 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
 
     _nativeAdNotifier = ref.read(nativeAdProvider.notifier);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      if (ref.read(homeScreenProvider).page == 0) {
-        ref.read(homeScreenProvider).getUserCreations();
+      if (_postsProvider.page == 0) {
+        _postsProvider.getUserCreations();
       }
 
-      _loadMultipleAds();
+      if (RemoteConfigService.instance.showNativeAds) {
+        _nativeAdNotifier.loadMultipleAds();
+      }
     });
 
     _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _loadMultipleAds() async {
-    if (RemoteConfigService.instance.showNativeAds) {
-      await _nativeAdNotifier.loadMultipleAds();
-    }
-  }
-
   void _onScroll() {
-    if (!_isScrollControllerAttached) return;
+    if (!mounted) return;
 
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 300 &&
-        !ref.read(homeScreenProvider).isLoadingMore) {
-      ref.read(homeScreenProvider).loadMoreImages();
+    final position = _scrollController.position;
+
+    if (position.pixels >= position.maxScrollExtent - _scrollThreshold &&
+        !_postsProvider.isLoadingMore) {
+      _postsProvider.loadMoreImages();
     }
 
-    final currentPosition = _scrollController.position.pixels;
-    final maxPosition = _scrollController.position.maxScrollExtent;
-
-    if (currentPosition > maxPosition * 0.7) {
-      _shouldLoadNewAd = true;
+    if (position.pixels > position.maxScrollExtent * _adLoadThreshold) {
+      _shouldLoadNewAd.value = true;
     }
   }
 
@@ -82,8 +78,9 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
 
     _adPositions.clear();
 
-    for (int i = _adFrequency; i <= posts.length; i += _adFrequency) {
-      _adPositions.add(i);
+    final int adCount = (posts.length / _adFrequency).floor();
+    for (int i = 1; i <= adCount; i++) {
+      _adPositions.add(i * _adFrequency);
     }
 
     final List<dynamic> itemsWithAds = [];
@@ -92,117 +89,169 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
     for (int i = 0; i < posts.length; i++) {
       itemsWithAds.add(posts[i]);
 
-      if (_adPositions.contains(i + 1)) {
-        if (adIndex < adState.nativeAds.length) {
-          itemsWithAds.add(AdItem(type: ItemType.ad, index: adIndex++));
-        }
+      if (_adPositions.contains(i + 1) && adIndex < adState.nativeAds.length) {
+        itemsWithAds.add(AdItem(type: ItemType.ad, index: adIndex++));
       }
     }
 
     return itemsWithAds;
   }
 
+  void _precacheUserProfiles(List<dynamic> posts) {
+    final userIds = posts
+        .map((p) => p.userId)
+        .whereType<String>()
+        .toSet()
+        .toList();
+
+    if (userIds.isNotEmpty) {
+      _userProfileNotifier.getProfilesForUserIds(userIds);
+    }
+  }
+
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
-
+    _shouldLoadNewAd.dispose();
     _nativeAdNotifier.safeDisposeAds();
-
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final homeProvider = ref.watch(homeScreenProvider);
-    final userProfileProviderWatch = ref.watch(userProfileProvider);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final homeProvider = ref.watch(homeScreenProvider);
+        final displayedImages = homeProvider.getDisplayedImages();
 
-    final displayedImages = homeProvider.getDisplayedImages();
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _precacheUserProfiles(displayedImages);
+        });
+
+        return Column(
+          children: [
+            CommunityHeader(
+              onSearchStateChanged: (a, b) {},
+              onFilterStateChanged: (x) {},
+            ),
+            Expanded(
+              child: _buildContent(homeProvider, displayedImages, constraints),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(
+      HomeScreenProvider homeProvider,
+      List<dynamic> displayedImages,
+      BoxConstraints constraints,
+      ) {
+    if (homeProvider.usersData == null) {
+      return _buildLoadingShimmer();
+    }
+
     final itemsWithAds = _getItemsWithAds(displayedImages);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _isScrollControllerAttached = _scrollController.hasClients;
-      if (_isFirstBuild && _scrollController.hasClients) {
-        _isFirstBuild = false;
-      }
-    });
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification is ScrollEndNotification) {
+          _shouldLoadNewAd.value = false;
+        }
+        return false;
+      },
+      child: RefreshIndicator(
+        onRefresh: () async {
+          await homeProvider.refreshUserCreations();
+          if (RemoteConfigService.instance.showNativeAds) {
+            _nativeAdNotifier.loadMultipleAds();
+          }
+        },
+        child: _buildListView(itemsWithAds, homeProvider, constraints),
+      ),
+    );
+  }
 
-    return Column(
-      children: [
-        CommunityHeader(
-          onSearchStateChanged: (a, b) {},
-          onFilterStateChanged: (x) {},
-        ),
-
-        Expanded(
-          child: homeProvider.usersData == null
-              ? const LoadingState(
+  Widget _buildListView(
+      List<dynamic> itemsWithAds,
+      HomeScreenProvider homeProvider,
+      BoxConstraints constraints,
+      ) {
+    return ListView.builder(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      cacheExtent: constraints.maxHeight * 2,
+      addAutomaticKeepAlives: true,
+      addRepaintBoundaries: true,
+      addSemanticIndexes: true,
+      semanticChildCount: itemsWithAds.length,
+      itemCount: itemsWithAds.length + (homeProvider.isLoadingMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index >= itemsWithAds.length) {
+          return const LoadingState(
             useShimmer: true,
-            shimmerItemCount: 3,
+            shimmerItemCount: 1,
             loadingType: LoadingType.post,
-          )
-              : RefreshIndicator(
-            onRefresh: () async {
-              await ref.read(homeScreenProvider).refreshUserCreations();
-              _loadMultipleAds();
-            },
-            child: ListView.builder(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              cacheExtent: 1000,
-              itemCount:
-              itemsWithAds.length + (homeProvider.isLoadingMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index >= itemsWithAds.length) {
-                  return const LoadingState(
-                    useShimmer: true,
-                    shimmerItemCount: 3,
-                    loadingType: LoadingType.post,
-                  );
-                }
+          );
+        }
 
-                final item = itemsWithAds[index];
+        final item = itemsWithAds[index];
 
-                if (item is AdItem) {
-                  return NativeAdPostWidget(
-                    key: ValueKey('native_ad_${item.index}'),
-                    adIndex: item.index,
-                    onAdDisposed: () {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) _loadMultipleAds();
-                      });
-                    },
-                  );
-                }
+        if (item is AdItem) {
+          return _buildAdItem(item, index);
+        }
 
-                final image = item;
+        return _buildPostItem(item, index, homeProvider);
+      },
+    );
+  }
 
-                final posts = ref.read(homeScreenProvider).communityImagesList;
-                final ids = posts.map((p) => p.userId).whereType<String>().toSet().toList();
+  Widget _buildAdItem(AdItem item, int listIndex) {
+    final key = 'native_ad_${item.index}';
+    _itemKeys.putIfAbsent(key, () => GlobalKey());
 
-                WidgetsBinding.instance.addPostFrameCallback((_) async {
-                  if (!mounted) return;
-                  await ref.read(userProfileProvider.notifier)
-                      .getProfilesForUserIds(ids);
-                });
+    return NativeAdPostWidget(
+      key: _itemKeys[key],
+      adIndex: item.index,
+      onAdDisposed: () {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted && RemoteConfigService.instance.showNativeAds) {
+            _nativeAdNotifier.loadMultipleAds();
+          }
+        });
+      },
+    );
+  }
 
-                final profile =
-                userProfileProviderWatch.value?.profilesCache[image.userId];
+  Widget _buildPostItem(dynamic image, int index, HomeScreenProvider homeProvider) {
+    final key = 'post_${image.id}_$index';
+    _itemKeys.putIfAbsent(key, () => GlobalKey());
 
-                return PostCard(
-                  key: ValueKey('post_${image.id}_$index'),
-                  image: image,
-                  index: index,
-                  homeProvider: homeProvider,
-                  profileImage: profile?.user.profilePic,
-                );
-              },
-            ),
-          ),
-        ),
-      ],
+    final profile = ref.watch(userProfileProvider.select(
+          (asyncValue) {
+        return asyncValue.maybeWhen(
+          data: (state) => state.profilesCache[image.userId],
+          orElse: () => null,
+        );
+      },
+    ));
+
+    return PostCard(
+      key: _itemKeys[key],
+      image: image,
+      index: index,
+      homeProvider: homeProvider,
+      profileImage: profile?.user.profilePic,
+    );
+  }
+
+  Widget _buildLoadingShimmer() {
+    return const LoadingState(
+      useShimmer: true,
+      shimmerItemCount: 3,
+      loadingType: LoadingType.post,
     );
   }
 }
-

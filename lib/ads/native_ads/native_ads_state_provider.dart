@@ -1,31 +1,5 @@
 import 'package:Artleap.ai/shared/route_export.dart';
 
-class InterestOnboardingScreenWrapper extends ConsumerStatefulWidget {
-  static const String routeName = "interest_onboarding_screen";
-  const InterestOnboardingScreenWrapper({super.key});
-
-  @override
-  ConsumerState<InterestOnboardingScreenWrapper> createState() =>
-      _InterestOnboardingScreenWrapperState();
-}
-
-class _InterestOnboardingScreenWrapperState
-    extends ConsumerState<InterestOnboardingScreenWrapper> {
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(nativeAdProvider.notifier).loadMultipleAds();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const InterestOnboardingScreen();
-  }
-}
-
 final nativeAdProvider =
 StateNotifierProvider<NativeAdNotifier, NativeAdState>((ref) {
   return NativeAdNotifier();
@@ -33,6 +7,7 @@ StateNotifierProvider<NativeAdNotifier, NativeAdState>((ref) {
 
 class NativeAdState {
   final List<NativeAd> nativeAds;
+  final List<bool> adReadyStatus; // Track which ads are actually ready
   final bool isLoading;
   final bool isLoaded;
   final bool showAds;
@@ -41,15 +16,18 @@ class NativeAdState {
 
   NativeAdState({
     List<NativeAd>? nativeAds,
+    List<bool>? adReadyStatus,
     this.isLoading = false,
     this.isLoaded = false,
     this.showAds = true,
     this.retryCount = 0,
     this.errorMessage,
-  }) : nativeAds = nativeAds ?? [];
+  })  : nativeAds = nativeAds ?? [],
+        adReadyStatus = adReadyStatus ?? [];
 
   NativeAdState copyWith({
     List<NativeAd>? nativeAds,
+    List<bool>? adReadyStatus,
     bool? isLoading,
     bool? isLoaded,
     bool? showAds,
@@ -58,6 +36,7 @@ class NativeAdState {
   }) {
     return NativeAdState(
       nativeAds: nativeAds ?? this.nativeAds,
+      adReadyStatus: adReadyStatus ?? this.adReadyStatus,
       isLoading: isLoading ?? this.isLoading,
       isLoaded: isLoaded ?? this.isLoaded,
       showAds: showAds ?? this.showAds,
@@ -80,23 +59,29 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
 
     if (state.isLoading) return;
 
+    // Dispose old ads
     for (var ad in state.nativeAds) {
       ad.dispose();
     }
 
+    const int adCount = 5;
+
+    // Pre-fill lists
+    final List<NativeAd?> ads = List.filled(adCount, null);
+    final List<bool> ready = List.filled(adCount, false);
+
     state = state.copyWith(
       nativeAds: [],
+      adReadyStatus: [],
       isLoading: true,
       isLoaded: false,
-      errorMessage: null,
     );
 
-    final List<NativeAd> loadedAds = [];
-    int loadedCount = 0;
-    int failedCount = 0;
-    final int adCount = 5;
+    int completed = 0;
 
     for (int i = 0; i < adCount; i++) {
+      final index = i;
+
       final ad = NativeAd(
         adUnitId: config.nativeAdUnit,
         request: const AdRequest(),
@@ -106,38 +91,60 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
         ),
         listener: NativeAdListener(
           onAdLoaded: (ad) {
-            loadedAds.add(ad as NativeAd);
-            loadedCount++;
+            ads[index] = ad as NativeAd;
+            ready[index] = true;
+            completed++;
 
-            if (loadedCount + failedCount >= adCount) {
-              state = state.copyWith(
-                nativeAds: loadedAds,
-                isLoading: false,
-                isLoaded: loadedCount > 0,
-                retryCount: 0,
-                errorMessage: null,
-              );
-            }
+            _updateFinalStateIfDone(ads, ready, completed, adCount);
           },
           onAdFailedToLoad: (ad, error) {
             ad.dispose();
-            failedCount++;
+            completed++;
 
-            if (loadedCount + failedCount >= adCount) {
-              state = state.copyWith(
-                nativeAds: loadedAds,
-                isLoading: false,
-                isLoaded: loadedCount > 0,
-                retryCount: state.retryCount + 1,
-                errorMessage: error.message,
-              );
-            }
+            _updateFinalStateIfDone(ads, ready, completed, adCount);
           },
         ),
       );
 
       await ad.load();
     }
+  }
+
+  void _updateFinalStateIfDone(
+      List<NativeAd?> ads,
+      List<bool> ready,
+      int completed,
+      int adCount,
+      ) {
+    if (completed < adCount) return;
+
+    final loadedAds = <NativeAd>[];
+    final readyStatus = <bool>[];
+
+    for (int i = 0; i < ads.length; i++) {
+      if (ads[i] != null && ready[i]) {
+        loadedAds.add(ads[i]!);
+        readyStatus.add(true);
+      }
+    }
+
+    state = state.copyWith(
+      nativeAds: loadedAds,
+      adReadyStatus: readyStatus,
+      isLoading: false,
+      isLoaded: loadedAds.isNotEmpty,
+    );
+  }
+
+
+  // Check if a specific ad is ready to be displayed
+  bool isAdReady(int index) {
+    if (index >= 0 &&
+        index < state.nativeAds.length &&
+        index < state.adReadyStatus.length) {
+      return state.adReadyStatus[index];
+    }
+    return false;
   }
 
   Future<void> loadInitialAd() async {
@@ -167,6 +174,7 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
         onAdLoaded: (ad) {
           state = state.copyWith(
             nativeAds: [ad as NativeAd],
+            adReadyStatus: [true],
             isLoading: false,
             isLoaded: true,
             retryCount: 0,
@@ -177,6 +185,7 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
           ad.dispose();
           state = state.copyWith(
             nativeAds: [],
+            adReadyStatus: [],
             isLoading: false,
             isLoaded: false,
             retryCount: state.retryCount + 1,
@@ -186,7 +195,7 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
       ),
     );
 
-    await ad.load();
+    ad.load();
   }
 
   Future<void> loadNativeAd() async {
@@ -205,6 +214,7 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
 
     state = state.copyWith(
       nativeAds: [],
+      adReadyStatus: [],
       isLoading: true,
       isLoaded: false,
       errorMessage: null,
@@ -221,6 +231,7 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
         onAdLoaded: (ad) {
           state = state.copyWith(
             nativeAds: [ad as NativeAd],
+            adReadyStatus: [true],
             isLoading: false,
             isLoaded: true,
             retryCount: 0,
@@ -231,6 +242,7 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
           ad.dispose();
           state = state.copyWith(
             nativeAds: [],
+            adReadyStatus: [],
             isLoading: false,
             isLoaded: false,
             retryCount: state.retryCount + 1,
@@ -247,7 +259,12 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     for (var ad in state.nativeAds) {
       ad.dispose();
     }
-    state = state.copyWith(nativeAds: [], isLoaded: false, isLoading: false);
+    state = state.copyWith(
+        nativeAds: [],
+        adReadyStatus: [],
+        isLoaded: false,
+        isLoading: false
+    );
   }
 
   void safeDisposeAds() {

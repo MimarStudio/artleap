@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
 import '../profile_screen/profile_screen_widgets/my_creations_widget.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
@@ -24,6 +25,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         );
       }
       AnalyticsService.instance.logScreenView(screenName: 'profile screen');
+
+      // Pre-load the interstitial ad when screen opens
+      ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
     });
   }
 
@@ -72,24 +76,41 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                               if (userId == null) return const SizedBox();
 
                               final notifications =
-                                  ref.watch(notificationProvider(userId));
+                              ref.watch(notificationProvider(userId));
                               final unreadCount = notifications.maybeWhen(
                                 data: (notifs) =>
-                                    notifs.where((n) => !n.isRead).length,
+                                notifs.where((n) => !n.isRead).length,
                                 orElse: () => 0,
                               );
                               return Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
+                                  // Saved Images button with ad
                                   IconButton(
                                     icon: Icon(Icons.save,
                                         color: theme.colorScheme.onPrimary),
-                                    onPressed: () {
-                                      Navigator.of(context)
-                                          .pushNamed('saved-images-screens');
+                                    onPressed: () async {
+                                      final didShowAd =
+                                      await ref.read(interstitialAdStateProvider.notifier).showInterstitialAd();
+
+                                      if (!didShowAd) {
+                                        // If ad wasn't shown, navigate immediately
+                                        Navigator.of(context)
+                                            .pushNamed('saved-images-screens');
+                                      } else {
+                                        // If ad is being shown, wait for it to close
+                                        ref.listen(interstitialAdStateProvider, (previous, next) {
+                                          if (previous?.isShowing == true && next.isShowing == false) {
+                                            Navigator.of(context)
+                                                .pushNamed('saved-images-screens');
+                                          }
+                                        });
+                                      }
                                     },
                                     tooltip: "Saved Images",
                                   ),
+
+                                  // Notifications button with ad
                                   IconButton(
                                     icon: Badge(
                                       label: unreadCount > 0
@@ -99,9 +120,21 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                           color: theme.colorScheme.onPrimary,
                                           size: 30),
                                     ),
-                                    onPressed: () {
-                                      Navigator.pushNamed(context,
-                                          NotificationScreen.routeName);
+                                    onPressed: () async {
+                                      final didShowAd =
+                                      await ref.read(interstitialAdStateProvider.notifier).showInterstitialAd();
+
+                                      if (!didShowAd) {
+                                        // If ad wasn't shown, navigate immediately
+                                        Navigator.pushNamed(context, NotificationScreen.routeName);
+                                      } else {
+                                        // If ad is being shown, wait for it to close
+                                        ref.listen(interstitialAdStateProvider, (previous, next) {
+                                          if (previous?.isShowing == true && next.isShowing == false) {
+                                            Navigator.pushNamed(context, NotificationScreen.routeName);
+                                          }
+                                        });
+                                      }
                                     },
                                   ),
                                 ],
@@ -165,16 +198,16 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                           ),
                                         ],
                                         image: profilePic != null &&
-                                                profilePic.isNotEmpty
+                                            profilePic.isNotEmpty
                                             ? DecorationImage(
-                                                image: NetworkImage(profilePic),
-                                                fit: BoxFit.cover,
-                                              )
+                                          image: NetworkImage(profilePic),
+                                          fit: BoxFit.cover,
+                                        )
                                             : const DecorationImage(
-                                                image: AssetImage(
-                                                    AppAssets.artstyle1),
-                                                fit: BoxFit.cover,
-                                              ),
+                                          image: AssetImage(
+                                              AppAssets.artstyle1),
+                                          fit: BoxFit.cover,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(height: 10),
@@ -205,9 +238,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                     const SizedBox(height: 16),
                                     Row(
                                       mainAxisAlignment:
-                                          MainAxisAlignment.start,
+                                      MainAxisAlignment.start,
                                       crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      CrossAxisAlignment.start,
                                       children: [
                                         _buildStatColumn(
                                           userPersonalData.user.followers.length

@@ -11,6 +11,7 @@ class OnboardingStepContent extends StatelessWidget {
   final bool isLastStep;
 
   const OnboardingStepContent({
+    super.key,
     required this.stepData,
     required this.currentStep,
     required this.selectedIndex,
@@ -30,9 +31,12 @@ class OnboardingStepContent extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // ✅ IMPORTANT
         children: [
           _buildStepIndicator(currentStep + 1, theme),
+
           const SizedBox(height: 20),
+
           Text(
             stepData.title,
             style: AppTextstyle.interBold(
@@ -40,7 +44,9 @@ class OnboardingStepContent extends StatelessWidget {
               color: theme.colorScheme.onSurface,
             ),
           ),
+
           const SizedBox(height: 8),
+
           Text(
             stepData.subtitle,
             style: AppTextstyle.interRegular(
@@ -49,25 +55,31 @@ class OnboardingStepContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Expanded(
-            child: ListView.builder(
-              itemCount: stepData.options.length,
-              itemBuilder: (context, index) {
-                final isSelected = index == selectedIndex;
-                return OptionCard(
+          ListView.builder(
+            itemCount: stepData.options.length,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemBuilder: (context, index) {
+              final isSelected = index == selectedIndex;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: OptionCard(
                   title: stepData.options[index],
                   isSelected: isSelected,
                   onTap: () => onOptionSelected(index),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
+
           const SizedBox(height: 16.0),
+
           ContinueButton(
             isEnabled: selectedIndex != null,
             onPressed: onContinue,
             isLastStep: isLastStep,
           ),
+
           SizedBox(height: safePadding.bottom),
         ],
       ),

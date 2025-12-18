@@ -189,3 +189,4 @@ export 'package:Artleap.ai/presentation/views/home_section/new_prompt_section/se
 export 'package:Artleap.ai/presentation/views/home_section/new_prompt_section/sections/new_create_section/components/prompt_input_section.dart';
 
 export 'package:Artleap.ai/providers/keyboard_provider.dart';
+export 'package:Artleap.ai/ads/native_ads/interesting_onboarding_ad_wrapper.dart';

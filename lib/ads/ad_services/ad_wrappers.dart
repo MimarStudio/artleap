@@ -34,7 +34,6 @@ class _AdAppWrapperState extends ConsumerState<AdAppWrapper> with WidgetsBinding
     if (_initialized) return;
 
     try {
-      print('AdAppWrapper: Initializing ads...');
 
       await ref.read(remoteConfigProvider).initialize();
       await ref.read(remoteConfigProvider).fetchAndActivate();
@@ -44,7 +43,6 @@ class _AdAppWrapperState extends ConsumerState<AdAppWrapper> with WidgetsBinding
       await _appOpenAdManager.loadAppOpenAd(ref);
 
       _initialized = true;
-      print('AdAppWrapper: Ads initialized successfully');
     } catch (e) {
       print('AdAppWrapper: Error initializing ads: $e');
     }
@@ -52,7 +50,6 @@ class _AdAppWrapperState extends ConsumerState<AdAppWrapper> with WidgetsBinding
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    print('AdAppWrapper: Lifecycle state changed to: $state');
 
     if (state == AppLifecycleState.resumed) {
       final now = DateTime.now();
@@ -60,7 +57,6 @@ class _AdAppWrapperState extends ConsumerState<AdAppWrapper> with WidgetsBinding
 
       if (_isFirstLaunch) {
         _isFirstLaunch = false;
-        print('AdAppWrapper: First launch, skipping app open ad');
         return;
       }
 
@@ -73,12 +69,9 @@ class _AdAppWrapperState extends ConsumerState<AdAppWrapper> with WidgetsBinding
   }
 
   Future<void> _showAppOpenAd() async {
-    print('AdAppWrapper: Attempting to show app open ad');
     await Future.delayed(const Duration(milliseconds: 1500));
-
     if (mounted) {
       final adShown = await _appOpenAdManager.showAppOpenAd(ref);
-      print('AdAppWrapper: App open ad shown: $adShown');
     }
   }
 

@@ -148,19 +148,7 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
     }
   }
 
-  Widget getBannerWidget() {
-    final showBannerAds = _ref.read(bannerAdsEnabledProvider);
-
-    if (_bannerAd == null || !showBannerAds || !state.adLoaded) {
-      return const SizedBox.shrink();
-    }
-
-    return SizedBox(
-      width: _bannerAd!.size.width.toDouble(),
-      height: _bannerAd!.size.height.toDouble(),
-      child: AdWidget(ad: _bannerAd!),
-    );
-  }
+  BannerAd? get bannerAd => _bannerAd;
 
   void retryLoading() {
     if (!_isDisposed && !state.isLoading) {

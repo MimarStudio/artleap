@@ -46,9 +46,11 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (_initialized) return;
       _initialized = true;
+
       final userId = (AppData.instance.userId?.trim().isNotEmpty ?? false)
           ? AppData.instance.userId!.trim()
           : (UserData.ins.userId ?? '').trim();
+
       if (userId.isEmpty) {
         if (mounted) {
           Navigator.pushReplacementNamed(context, LoginScreen.routeName);
@@ -56,6 +58,12 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
         return;
       }
       await ref.read(userProfileProvider.notifier).getUserProfileData(userId);
+      final profileState = ref.read(userProfileProvider).valueOrNull;
+      final planName = profileState?.userProfile?.user.planName.toLowerCase() ?? 'free';
+      final isFreeUser = planName == 'free';
+      RemoteConfigService.instance.updateUserPlan(
+        isFreeUser: isFreeUser,
+      );
     });
   }
 

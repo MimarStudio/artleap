@@ -1,9 +1,24 @@
 import 'components/onboarding_step_content.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
-class InterestOnboardingScreen extends ConsumerWidget {
+class InterestOnboardingScreen extends ConsumerStatefulWidget {
   const InterestOnboardingScreen({super.key});
   static const String routeName = "interest_onboarding_screen";
+
+  @override
+  ConsumerState<InterestOnboardingScreen> createState() => _InterestOnboardingScreenState();
+}
+
+class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    // Load the native ad when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(nativeAdProvider.notifier).loadMultipleAds();
+    });
+  }
 
   Future<void> _saveUserInterests(WidgetRef ref, BuildContext context) async {
     final selectedOptions = ref.read(selectedOptionsProvider);
@@ -21,19 +36,21 @@ class InterestOnboardingScreen extends ConsumerWidget {
       return;
     }
 
-    List<String> selectedInterests = [];
-    List<String> categories = [];
+    final List<String> selectedInterests = [];
+    final List<String> categories = [];
 
     for (int i = 0; i < selectedOptions.length; i++) {
       final selectedIndex = selectedOptions[i];
-      if (selectedIndex != null && onboardingData[i].options.length > selectedIndex) {
+      if (selectedIndex != null &&
+          onboardingData[i].options.length > selectedIndex) {
         selectedInterests.add(onboardingData[i].options[selectedIndex]);
         categories.add('category_$i');
       }
     }
 
     if (selectedInterests.isNotEmpty) {
-      final success = await ref.read(userPreferencesServiceProvider).updateUserInterests(
+      final success =
+      await ref.read(userPreferencesServiceProvider).updateUserInterests(
         userId: userId,
         selected: selectedInterests,
         categories: categories,
@@ -63,14 +80,14 @@ class InterestOnboardingScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     final currentStep = ref.watch(interestOnboardingStepProvider);
     final onboardingData = ref.watch(onboardingDataProvider);
     final selectedOptions = ref.watch(selectedOptionsProvider);
-    final mediaQuery = MediaQuery.of(context);
-    final screenHeight = mediaQuery.size.height;
-    final screenWidth = mediaQuery.size.width;
+
+    final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
 
     final currentStepData = onboardingData[currentStep];
@@ -111,50 +128,56 @@ class InterestOnboardingScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
+            // Native Ad at the TOP
+            if (adState.showAds && adState.isLoaded && adState.nativeAds.isNotEmpty)
+              _buildNativeAdWidget(
+                adState,
+                currentStep,
+                isSmallScreen,
+                context,
+              ),
+
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
               child: ProgressBar(),
             ),
+
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: isSmallScreen ? 16.0 : 32.0,
-                                  vertical: 16.0,
-                                ),
-                                child: OnboardingStepContent(
-                                  stepData: currentStepData,
-                                  currentStep: currentStep,
-                                  selectedIndex: currentSelection,
-                                  onOptionSelected: (index) {
-                                    final updatedSelections = List<int?>.from(selectedOptions);
-                                    updatedSelections[currentStep] = index;
-                                    ref.read(selectedOptionsProvider.notifier).state = updatedSelections;
-                                  },
-                                  onContinue: () => _handleContinue(ref, context),
-                                  isLastStep: currentStep == onboardingData.length - 1,
-                                ),
-                              ),
-                            ),
-                            if (adState.showAds && adState.nativeAds.isNotEmpty && !adState.isLoading)
-                              _buildNativeAdWidget(adState, isSmallScreen, currentStep, context),
-                          ],
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isSmallScreen ? 16.0 : 32.0,
+                          vertical: 16.0,
+                        ),
+                        child: OnboardingStepContent(
+                          stepData: currentStepData,
+                          currentStep: currentStep,
+                          selectedIndex: currentSelection,
+                          onOptionSelected: (index) {
+                            final updatedSelections =
+                            List<int?>.from(selectedOptions);
+                            updatedSelections[currentStep] = index;
+                            ref.read(selectedOptionsProvider.notifier).state =
+                                updatedSelections;
+                          },
+                          onContinue: () => _handleContinue(ref, context),
+                          isLastStep:
+                          currentStep == onboardingData.length - 1,
                         ),
                       ),
-                    ),
-                  );
-                },
+
+                      // Optional: You can show another ad at bottom if needed
+                      // But based on your request, ad should be at top
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -163,19 +186,27 @@ class InterestOnboardingScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildNativeAdWidget(NativeAdState adState, bool isSmallScreen, int currentStep, BuildContext context) {
-    final adIndex = currentStep % adState.nativeAds.length;
-    final nativeAd = adState.nativeAds[adIndex];
+  Widget _buildNativeAdWidget(
+      NativeAdState adState,
+      int currentStep,
+      bool isSmallScreen,
+      BuildContext context,
+      ) {
+    if (!adState.isLoaded || adState.nativeAds.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-    return Container(
-      padding: EdgeInsets.only(
-        top: 16.0,
-        bottom: 16.0,
-        left: isSmallScreen ? 16.0 : 32.0,
-        right: isSmallScreen ? 16.0 : 32.0,
+    // Use a consistent ad for this screen or cycle through available ads
+    final index = currentStep % adState.nativeAds.length;
+    final ad = adState.nativeAds[index];
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 16 : 32,
+        vertical: 8,
       ),
       child: Container(
-        height: 100,
+        height: 100, // Adjust height as needed
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: Theme.of(context).cardColor,
@@ -183,13 +214,12 @@ class InterestOnboardingScreen extends ConsumerWidget {
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
               blurRadius: 8,
-              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: AdWidget(ad: nativeAd),
+          child: AdWidget(ad: ad),
         ),
       ),
     );

@@ -15,6 +15,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   bool _initialized = false;
   DateTime? _startTime;
 
+
   @override
   void initState() {
     super.initState();
@@ -167,7 +168,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         hasSeenTutorial: hasSeenTutorial,
       );
     } catch (e) {
-      print('SplashScreen: Error in _navigateToNextScreen: $e');
       if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil(
           LoginScreen.routeName,

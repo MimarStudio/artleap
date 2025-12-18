@@ -54,13 +54,17 @@ class UserProfileState {
       profilesCache: profilesCache ?? this.profilesCache,
     );
   }
+  bool get isFreeUser {
+    final planName = userProfile?.user.planName;
+    if (planName == null) return true;
+    return planName.toLowerCase() == 'free';
+  }
 }
 
 class UserProfileNotifier extends AsyncNotifier<UserProfileState>
     with BaseRepo {
   @override
   Future<UserProfileState> build() async {
-    // initial empty state
     return const UserProfileState();
   }
 
