@@ -41,23 +41,15 @@ class _PromptCreateScreenRedesignState
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!_isMounted) return;
       try {
-        AnalyticsService.instance
-            .logScreenView(screenName: 'generating screen');
+        AnalyticsService.instance.logScreenView(screenName: 'generating screen');
         await AdHelper.preloadRewardedAd(ref);
         if (!_isMounted) return;
 
         final userProfile = ref.read(userProfileProvider).valueOrNull?.userProfile;
-        final profileState = ref.read(userProfileProvider).valueOrNull;
-        final planName = profileState?.userProfile?.user.planName.toLowerCase() ?? 'free';
-        final isFreeUser = planName == 'free';
-        RemoteConfigService.instance.updateUserPlan(
-          isFreeUser: isFreeUser,
-        );
         if (userProfile != null && userProfile.user.totalCredits == 0) {
           _showCreditsDialog();
         }
       } catch (e) {
-        // Handle error gracefully
         debugPrint('Error in initState callback: $e');
       }
     });

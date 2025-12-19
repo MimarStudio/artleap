@@ -58,12 +58,6 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
         return;
       }
       await ref.read(userProfileProvider.notifier).getUserProfileData(userId);
-      final profileState = ref.read(userProfileProvider).valueOrNull;
-      final planName = profileState?.userProfile?.user.planName.toLowerCase() ?? 'free';
-      final isFreeUser = planName == 'free';
-      RemoteConfigService.instance.updateUserPlan(
-        isFreeUser: isFreeUser,
-      );
     });
   }
 

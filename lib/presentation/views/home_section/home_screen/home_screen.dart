@@ -27,12 +27,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final userProfile = profileAsync.value?.userProfile?.user;
-    final profileState = ref.read(userProfileProvider).valueOrNull;
-    final planName = profileState?.userProfile?.user.planName.toLowerCase() ?? 'free';
-    final isFreeUser = planName == 'free';
-    RemoteConfigService.instance.updateUserPlan(
-      isFreeUser: isFreeUser,
-    );
     final shouldRefresh = ref.watch(refreshProvider);
     ref.watch(bottomNavBarProvider);
     final theme = Theme.of(context);

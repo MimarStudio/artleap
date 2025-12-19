@@ -32,15 +32,7 @@ class PurchaseHandler {
       ref.refresh(currentSubscriptionProvider(userId));
       final profileNotifier = ref.read(userProfileProvider.notifier);
       await profileNotifier.getUserProfileData(userId);
-      final profileState = ref.read(userProfileProvider).valueOrNull;
-      final planName = profileState?.userProfile?.user.planName.toLowerCase() ?? 'free';
-
-      RemoteConfigService.instance.updateUserPlan(
-        isFreeUser: planName == 'free',
-      );
       await profileNotifier.updateUserCredits();
-
-      debugPrint('✅ User sync after purchase completed');
     } catch (e, stack) {
       debugPrint('❌ Post-purchase sync failed: $e');
       debugPrint(stack.toString());

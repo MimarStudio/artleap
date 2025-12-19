@@ -8,15 +8,42 @@ class HomeScreenTopBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final screenWidth = MediaQuery.of(context).size.width;
     final theme = Theme.of(context);
-    final subscriptionAsync = ref.watch(currentSubscriptionProvider(UserData.ins.userId!));
 
-    final userSubscription = subscriptionAsync.value;
-    final bool isFreePlan = userSubscription == null ||
-        userSubscription.planSnapshot!.type == 'free' ||
-        userSubscription.cancelledAt != null;
-    final planName = ref.watch(userProfileProvider).value!.userProfile!.user.planName ?? 'Free';
+    final subscriptionAsync =
+    ref.watch(currentSubscriptionProvider(UserData.ins.userId!));
+    final profileAsync = ref.watch(userProfileProvider);
 
+    // ---------------- SAFE DEFAULTS ----------------
+    UserSubscriptionModel? userSubscription;
+    bool isFreePlan = true;
+    String planName = 'Free';
+    int totalCredits = 0;
 
+    // ---------------- SUBSCRIPTION ----------------
+    subscriptionAsync.when(
+      data: (sub) {
+        userSubscription = sub;
+        isFreePlan = sub == null ||
+            sub.planSnapshot?.type == 'free' ||
+            sub.cancelledAt != null;
+      },
+      loading: () {
+        isFreePlan = true;
+      },
+      error: (_, __) {
+        isFreePlan = true;
+      },
+    );
+
+    // ---------------- PROFILE ----------------
+    profileAsync.when(
+      data: (state) {
+        planName = state.userProfile?.user.planName ?? 'Free';
+        totalCredits = state.userProfile?.user.totalCredits ?? 0;
+      },
+      loading: () {},
+      error: (_, __) {},
+    );
 
     return Column(
       children: [
@@ -31,6 +58,7 @@ class HomeScreenTopBar extends ConsumerWidget {
             children: [
               Row(
                 children: [
+                  // ---------------- MENU BUTTON (UNCHANGED) ----------------
                   GestureDetector(
                     onTap: onMenuTap,
                     child: Container(
@@ -40,12 +68,16 @@ class HomeScreenTopBar extends ConsumerWidget {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [theme.colorScheme.primary, theme.colorScheme.primaryContainer],
+                          colors: [
+                            theme.colorScheme.primary,
+                            theme.colorScheme.primaryContainer
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: theme.colorScheme.primary.withOpacity(0.3),
+                            color:
+                            theme.colorScheme.primary.withOpacity(0.3),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -78,17 +110,22 @@ class HomeScreenTopBar extends ConsumerWidget {
                     ),
                   ),
                   SizedBox(width: screenWidth * 0.025),
+
+                  // ---------------- CREDITS BUTTON (UNCHANGED) ----------------
                   InkWell(
                     onTap: () {
                       if (!isFreePlan) {
-                        Navigator.of(context).pushNamed("/subscription-status");
+                        Navigator.of(context)
+                            .pushNamed("/subscription-status");
                       } else {
-                        Navigator.of(context).pushNamed("choose_plan_screen");
+                        Navigator.of(context)
+                            .pushNamed("choose_plan_screen");
                       }
                     },
                     child: Container(
                       height: 36,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
@@ -107,7 +144,7 @@ class HomeScreenTopBar extends ConsumerWidget {
                           ),
                           SizedBox(width: screenWidth * 0.012),
                           Text(
-                            "${ref.watch(userProfileProvider).value!.userProfile?.user.totalCredits ?? 0}",
+                            '$totalCredits',
                             style: AppTextstyle.interMedium(
                               color: Colors.orange,
                               fontSize: 13,
@@ -120,7 +157,13 @@ class HomeScreenTopBar extends ConsumerWidget {
                   ),
                 ],
               ),
-              isFreePlan ? _buildProfessionalProButton(screenWidth, context, theme) : _buildPlanBadge(planName, screenWidth, theme),
+
+              // ---------------- RIGHT SIDE (UNCHANGED) ----------------
+              isFreePlan
+                  ? _buildProfessionalProButton(
+                  screenWidth, context, theme)
+                  : _buildPlanBadge(
+                  planName, screenWidth, theme),
             ],
           ),
         ),
@@ -129,7 +172,10 @@ class HomeScreenTopBar extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfessionalProButton(double screenWidth, BuildContext context, ThemeData theme) {
+  // ======================= UI HELPERS (UNCHANGED) =======================
+
+  Widget _buildProfessionalProButton(
+      double screenWidth, BuildContext context, ThemeData theme) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -145,19 +191,19 @@ class HomeScreenTopBar extends ConsumerWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            Navigator.of(context).pushNamed("choose_plan_screen");
+            Navigator.of(context)
+                .pushNamed("choose_plan_screen");
           },
           borderRadius: BorderRadius.circular(20),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
                   theme.colorScheme.primary,
                   theme.colorScheme.primaryContainer,
                 ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
@@ -177,20 +223,11 @@ class HomeScreenTopBar extends ConsumerWidget {
                         Color(0xFFFFA500),
                         Color(0xFFFF8C00),
                       ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.orange.withOpacity(0.3),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                   FeatherIcons.award,
+                    FeatherIcons.award,
                     color: theme.colorScheme.onPrimary,
                     size: 14,
                   ),
@@ -219,40 +256,56 @@ class HomeScreenTopBar extends ConsumerWidget {
     );
   }
 
-  Widget _buildPlanBadge(String planName, double screenWidth, ThemeData theme) {
+  Widget _buildPlanBadge(
+      String planName, double screenWidth, ThemeData theme) {
     Color textColor;
     Color borderColor;
     IconData icon;
-    LinearGradient? gradient;
+    LinearGradient gradient;
 
     switch (planName.toLowerCase()) {
       case 'basic':
         gradient = LinearGradient(
-          colors: [theme.colorScheme.surface, theme.colorScheme.surfaceContainerHighest],
+          colors: [
+            theme.colorScheme.surface,
+            theme.colorScheme.surfaceContainerHighest
+          ],
         );
         textColor = theme.colorScheme.primary;
         borderColor = theme.colorScheme.primary.withOpacity(0.5);
         icon = Icons.star_outline;
         break;
+
       case 'standard':
         gradient = LinearGradient(
-          colors: [theme.colorScheme.surface, theme.colorScheme.surfaceContainerHighest],
+          colors: [
+            theme.colorScheme.surface,
+            theme.colorScheme.surfaceContainerHighest
+          ],
         );
         textColor = theme.colorScheme.primary;
         borderColor = theme.colorScheme.primary.withOpacity(0.5);
         icon = Icons.star_half;
         break;
+
       case 'premium':
         gradient = LinearGradient(
-          colors: [theme.colorScheme.primary, theme.colorScheme.primaryContainer],
+          colors: [
+            theme.colorScheme.primary,
+            theme.colorScheme.primaryContainer
+          ],
         );
         textColor = theme.colorScheme.onPrimary;
         borderColor = theme.colorScheme.primary;
         icon = Icons.star;
         break;
+
       default:
         gradient = LinearGradient(
-          colors: [theme.colorScheme.surface, theme.colorScheme.surfaceContainerHighest],
+          colors: [
+            theme.colorScheme.surface,
+            theme.colorScheme.surfaceContainerHighest
+          ],
         );
         textColor = theme.colorScheme.primary;
         borderColor = theme.colorScheme.primary.withOpacity(0.5);
@@ -260,21 +313,12 @@ class HomeScreenTopBar extends ConsumerWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding:
+      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         gradient: gradient,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: borderColor,
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: borderColor.withOpacity(0.15),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        border: Border.all(color: borderColor, width: 1.2),
       ),
       child: Row(
         children: [

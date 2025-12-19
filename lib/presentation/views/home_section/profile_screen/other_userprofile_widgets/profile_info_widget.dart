@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/domain/api_models/user_profile_model.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class ProfileInfoWidget extends ConsumerWidget {
@@ -8,61 +9,95 @@ class ProfileInfoWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final userProfile = ref.watch(userProfileProvider);
-    final otherUser = userProfile.value!.otherUserProfile!.user;
+    final userProfileAsync = ref.watch(userProfileProvider);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _buildProfileAvatar(userProfile, theme),
-              16.spaceX,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      profileName ?? "User Name",
-                      style: AppTextstyle.interMedium(
-                        color: theme.colorScheme.onSurface,
-                        fontSize: 18,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      softWrap: false,
-                    ),
-                    6.spaceY,
-                    Text(
-                      "AI Artist",
-                      style: AppTextstyle.interRegular(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
+    // Handle loading/error states
+    return userProfileAsync.when(
+      data: (userProfileState) {
+        final otherUserProfile = userProfileState.otherUserProfile;
+
+        if (otherUserProfile == null) {
+          return Center(
+            child: Text(
+              "Profile not found",
+              style: AppTextstyle.interRegular(
+                color: theme.colorScheme.onSurface,
+                fontSize: 16,
               ),
+            ),
+          );
+        }
+
+        final otherUser = otherUserProfile.user;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _buildProfileAvatar(otherUserProfile, theme),
+                  16.spaceX,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          profileName ?? "User Name",
+                          style: AppTextstyle.interMedium(
+                            color: theme.colorScheme.onSurface,
+                            fontSize: 18,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          softWrap: false,
+                        ),
+                        6.spaceY,
+                        Text(
+                          "AI Artist",
+                          style: AppTextstyle.interRegular(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              20.spaceY,
+              _buildStatsRow(otherUser, theme),
+              20.spaceY,
+              _buildFollowButton(userProfileState, ref, theme),
             ],
           ),
-          20.spaceY,
-          _buildStatsRow(otherUser, theme),
-          20.spaceY,
-          _buildFollowButton(userProfile,ref, theme),
-        ],
+        );
+      },
+      loading: () => Center(
+        child: CircularProgressIndicator(
+          color: theme.colorScheme.primary,
+        ),
+      ),
+      error: (error, stackTrace) => Center(
+        child: Text(
+          "Failed to load profile",
+          style: AppTextstyle.interRegular(
+            color: theme.colorScheme.error,
+            fontSize: 16,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildProfileAvatar(dynamic userProfile, ThemeData theme) {
-    final hasProfilePic = userProfile.otherUserProfileData?.user.profilePic.isNotEmpty ?? false;
+  Widget _buildProfileAvatar(UserProfileModel userProfile, ThemeData theme) {
+    final hasProfilePic = userProfile.user.profilePic.isNotEmpty;
 
     return Container(
       height: 70,
@@ -74,8 +109,16 @@ class ProfileInfoWidget extends ConsumerWidget {
       child: ClipOval(
         child: hasProfilePic
             ? Image.network(
-          userProfile.otherUserProfileData!.user.profilePic,
+          userProfile.user.profilePic,
           fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Icon(
+              Icons.person_rounded,
+              color: theme.colorScheme.onSurface.withOpacity(0.4),
+              size: 32,
+            ),
+          ),
         )
             : Container(
           color: theme.colorScheme.surfaceContainerHighest,
@@ -90,9 +133,9 @@ class ProfileInfoWidget extends ConsumerWidget {
   }
 
   Widget _buildStatsRow(dynamic otherUser, ThemeData theme) {
-    final creations = otherUser?.images.length ?? 0;
-    final followers = otherUser?.followers.length ?? 0;
-    final following = otherUser?.following.length ?? 0;
+    final creations = otherUser?.images?.length ?? 0;
+    final followers = otherUser?.followers?.length ?? 0;
+    final following = otherUser?.following?.length ?? 0;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -135,17 +178,21 @@ class ProfileInfoWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildFollowButton(dynamic userProfile,WidgetRef ref, ThemeData theme) {
-    final isFollowing = userProfile.userProfileData?.user.following.any((user) => user.id == userId) ?? false;
-    final isLoading = userProfile.isLoading;
+  Widget _buildFollowButton(UserProfileState userProfileState, WidgetRef ref, ThemeData theme) {
+    final isLoading = userProfileState.isLoading;
+    final currentUserId = UserData.ins.userId;
+
+    // Check if current user is following this user
+    final isFollowing = userProfileState.userProfile?.user.following
+        .any((user) => user.id == userId) ?? false;
 
     return SizedBox(
       width: double.infinity,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            ref.read(userProfileProvider.notifier).followUnfollowUser(UserData.ins.userId!, userId!);
+          onTap: currentUserId == null ? null : () {
+            ref.read(userProfileProvider.notifier).followUnfollowUser(currentUserId, userId!);
           },
           borderRadius: BorderRadius.circular(12),
           child: Container(
@@ -160,9 +207,9 @@ class ProfileInfoWidget extends ConsumerWidget {
             ),
             child: Center(
               child: isLoading
-                  ? LoadingAnimationWidget.threeArchedCircle(
+                  ? CircularProgressIndicator(
                 color: isFollowing ? theme.colorScheme.primary : theme.colorScheme.onPrimary,
-                size: 20,
+                strokeWidth: 2,
               )
                   : Row(
                 mainAxisAlignment: MainAxisAlignment.center,

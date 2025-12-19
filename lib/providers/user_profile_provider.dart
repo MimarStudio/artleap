@@ -146,11 +146,20 @@ class UserProfileNotifier extends AsyncNotifier<UserProfileState>
   }
 
   Future<void> getOtherUserProfileData(String uid) async {
-    _setLoading(true);
+    final id = uid.trim();
+    if (id.isEmpty) return;
 
-    final response = await userFollowingRepo.getOtherUserProfileData(uid);
+    // ✅ Clear previous profile FIRST
+    state = AsyncData(
+      _current.copyWith(
+        isLoading: true,
+        otherUserProfile: null,
+      ),
+    );
 
-    if (response.status == Status.completed) {
+    final response = await userFollowingRepo.getOtherUserProfileData(id);
+
+    if (response.status == Status.completed && response.data != null) {
       state = AsyncData(
         _current.copyWith(
           isLoading: false,
@@ -158,14 +167,23 @@ class UserProfileNotifier extends AsyncNotifier<UserProfileState>
         ),
       );
     } else {
+      debugPrint('❌ User not found for id: $id');
+
+      state = AsyncData(
+        _current.copyWith(
+          isLoading: false,
+          otherUserProfile: null,
+        ),
+      );
+
       appSnackBar(
-        "Error",
-        response.message ?? "Failed to fetch other user profile",
+        "User not found",
+        "This user profile does not exist",
         backgroundColor: AppColors.redColor,
       );
-      _setLoading(false);
     }
   }
+
 
   Future<void> updateUserCredits() async {
     _setLoading(true);

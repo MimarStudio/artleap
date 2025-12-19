@@ -10,10 +10,10 @@ class RemoteConfigService {
   bool _isFreeUser = true;
 
   /// 🔥 CALLED when profile loads
-  void updateUserPlan({required bool isFreeUser}) {
-    _isFreeUser = isFreeUser;
-    debugPrint('🔐 RemoteConfig: User isFreeUser=$_isFreeUser');
-  }
+  // void updateUserPlan({required bool isFreeUser}) {
+  //   _isFreeUser = isFreeUser;
+  //   debugPrint('🔐 RemoteConfig: User isFreeUser=$_isFreeUser');
+  // }
   Future<void> initialize() async {
     if (_initialized) return;
 

@@ -14,57 +14,99 @@ class OtherUserProfileScreen extends ConsumerStatefulWidget {
   const OtherUserProfileScreen({super.key, this.params});
 
   @override
-  ConsumerState<ConsumerStatefulWidget> createState() => _OtherUserProfileScreenState();
+  ConsumerState<OtherUserProfileScreen> createState() =>
+      _OtherUserProfileScreenState();
 }
 
-class _OtherUserProfileScreenState extends ConsumerState<OtherUserProfileScreen> {
+class _OtherUserProfileScreenState
+    extends ConsumerState<OtherUserProfileScreen> {
+
+  late final String userId;
+
   @override
   void initState() {
     super.initState();
-    ref.read(userProfileProvider.notifier).getOtherUserProfileData(widget.params!.userId!);
-    AnalyticsService.instance.logScreenView(screenName: 'others profile screen');
+    userId = widget.params!.userId!;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(userProfileProvider.notifier)
+          .getOtherUserProfileData(userId);
+    });
+
+    AnalyticsService.instance
+        .logScreenView(screenName: 'others profile screen');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final profileState = ref.watch(userProfileProvider);
+    final otherProfile = profileState.value?.otherUserProfile;
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      body: ref.watch(userProfileProvider).value?.otherUserProfile == null
-          ? Center(
-        child: LoadingAnimationWidget.threeArchedCircle(
-          color: theme.colorScheme.primary,
-          size: 35,
-        ),
-      )
-          : Column(
-        children: [
-          _buildAppBar(theme),
-          20.spaceY,
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: [
-                  ProfileInfoWidget(
-                    profileName: widget.params!.profileName,
-                    userId: widget.params!.userId,
+      body: profileState.when(
+        data: (userProfileState) {
+          final otherProfile = userProfileState.otherUserProfile;
+
+          return Column(
+            children: [
+              _buildAppBar(theme),
+              20.spaceY,
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      ProfileInfoWidget(
+                        profileName: widget.params!.profileName,
+                        userId: userId,
+                      ),
+                      24.spaceY,
+                      otherProfile == null
+                          ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Text(
+                            "Profile not found",
+                            style: AppTextstyle.interMedium(
+                              color: theme.colorScheme.onSurface,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      )
+                          : MyCreationsWidget(
+                        userName: widget.params!.profileName,
+                        listofCreations: otherProfile.user.images ?? [],
+                        userId: userId,
+                      ),
+                      20.spaceY,
+                    ],
                   ),
-                  24.spaceY,
-                  MyCreationsWidget(
-                    userName: widget.params!.profileName,
-                    listofCreations: ref.watch(userProfileProvider).value?.otherUserProfile?.user.images ?? [],
-                    userId: widget.params!.userId,
-                  ),
-                  20.spaceY,
-                ],
+                ),
               ),
+            ],
+          );
+        },
+        loading: () => Center(
+          child: CircularProgressIndicator(
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        error: (error, stackTrace) => Center(
+          child: Text(
+            "Failed to load profile",
+            style: AppTextstyle.interRegular(
+              color: theme.colorScheme.error,
+              fontSize: 16,
             ),
           ),
-        ],
+        ),
       ),
     );
   }
+
   Widget _buildAppBar(ThemeData theme) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
@@ -77,7 +119,11 @@ class _OtherUserProfileScreenState extends ConsumerState<OtherUserProfileScreen>
             ),
             child: IconButton(
               onPressed: () => Navigator.pop(context),
-              icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.colorScheme.primary, size: 18),
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: theme.colorScheme.primary,
+                size: 18,
+              ),
             ),
           ),
           12.spaceX,
