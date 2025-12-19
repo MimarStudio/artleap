@@ -256,12 +256,20 @@ class _PromptCreateScreenRedesignState
       ref: ref,
       onRewardEarned: (coins) {
         if (!_isMounted) return;
-        AdHelper.showRewardSuccessSnackbar(context, coins);
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!_isMounted) return;
+          AdHelper.showRewardSuccessSnackbar(context, coins);
+        });
+
         AdHelper.refreshUserProfileAfterReward(ref);
         _adDialogShown = false;
       },
       onAdDismissed: () {
         if (!_isMounted) return;
+        try {
+          Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+        } catch (e) {
+        }
 
         final adNotifier = ref.read(rewardedAdNotifierProvider.notifier);
         adNotifier.loadAd();
@@ -270,15 +278,16 @@ class _PromptCreateScreenRedesignState
       onAdFailed: () {
         if (!_isMounted) return;
 
-        AdHelper.showAdErrorSnackbar(
-          context,
-          'Failed to show ad. Please try again.',
-        );
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!_isMounted) return;
+          AdHelper.showAdErrorSnackbar(
+            context,
+            'Failed to show ad. Please try again.',
+          );
+        });
         _adDialogShown = false;
-
         Future.delayed(const Duration(seconds: 2), () {
           if (!_isMounted) return;
-
           final adNotifier = ref.read(rewardedAdNotifierProvider.notifier);
           adNotifier.loadAd();
         });

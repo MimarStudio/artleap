@@ -26,6 +26,10 @@ class CreditsDialog extends ConsumerWidget {
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenHeight < 600;
 
+    final userProfile = ref.watch(userProfileProvider).valueOrNull?.userProfile;
+    final rewardDailyCount = userProfile?.user.rewardDailyCount ?? 0;
+    final canWatchAd = rewardDailyCount < 2;
+
     return WillPopScope(
       onWillPop: () async => false,
       child: Dialog(
@@ -51,9 +55,9 @@ class CreditsDialog extends ConsumerWidget {
               children: [
                 _buildHeader(context, isSmallScreen),
                 SizedBox(height: isSmallScreen ? 12 : 16),
-                _buildStatusCard(context, isSmallScreen),
+                _buildStatusCard(context, isSmallScreen, rewardDailyCount),
                 SizedBox(height: isSmallScreen ? 16 : 20),
-                _buildOptionsSection(context, isFreePlan, isAdReady, isAdLoading, isSmallScreen, ref),
+                _buildOptionsSection(context, isFreePlan, isAdReady, isAdLoading, isSmallScreen, ref, canWatchAd, rewardDailyCount),
                 SizedBox(height: isSmallScreen ? 16 : 20),
                 _buildActionButtons(context, isFreePlan, isSmallScreen),
               ],
@@ -120,7 +124,9 @@ class CreditsDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusCard(BuildContext context, bool isSmallScreen) {
+  Widget _buildStatusCard(BuildContext context, bool isSmallScreen, int rewardDailyCount) {
+    final hasExceededAdLimit = rewardDailyCount >= 2;
+
     return Container(
       padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
       decoration: BoxDecoration(
@@ -153,7 +159,9 @@ class CreditsDialog extends ConsumerWidget {
           ),
           SizedBox(height: isSmallScreen ? 6 : 8),
           Text(
-            'You\'ve used all your daily credits. Choose an option below to continue creating.',
+            hasExceededAdLimit
+                ? 'You\'ve watched 2 ads today (maximum reached). Upgrade to premium for unlimited credits.'
+                : 'You\'ve used all your daily credits. Choose an option below to continue creating.',
             style: TextStyle(
               fontSize: isSmallScreen ? 12 : 13,
               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
@@ -172,6 +180,8 @@ class CreditsDialog extends ConsumerWidget {
       bool isAdLoading,
       bool isSmallScreen,
       WidgetRef ref,
+      bool canWatchAd,
+      int rewardDailyCount,
       ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -186,10 +196,10 @@ class CreditsDialog extends ConsumerWidget {
           ),
         ),
         SizedBox(height: isSmallScreen ? 10 : 12),
-        if (isFreePlan) ...[
+        if (isFreePlan && canWatchAd) ...[
           _buildOptionCard(
             context,
-            title: isAdReady ? 'Watch an Ad' : 'Loading Ad',
+            title: isAdReady ? 'Watch an Ad ($rewardDailyCount/2)' : 'Loading Ad',
             subtitle: isAdReady ? 'Earn free credits instantly' : 'Please wait...',
             icon: Icons.play_circle_fill_rounded,
             iconColor: Colors.blueAccent,
@@ -207,13 +217,47 @@ class CreditsDialog extends ConsumerWidget {
         _buildOptionCard(
           context,
           title: 'Upgrade to Premium',
-          subtitle: 'Unlimited credits & premium features',
+          subtitle: rewardDailyCount >= 2
+              ? 'Unlimited credits (ads limit reached)'
+              : 'Unlimited credits & premium features',
           icon: Icons.stars_rounded,
           iconColor: Colors.amber,
           isActive: true,
           isSmallScreen: isSmallScreen,
           onTap: onUpgrade,
         ),
+        if (isFreePlan && rewardDailyCount >= 2) ...[
+          SizedBox(height: isSmallScreen ? 10 : 12),
+          Container(
+            padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 10),
+              border: Border.all(
+                color: Colors.orange.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: isSmallScreen ? 14 : 16,
+                  color: Colors.orange,
+                ),
+                SizedBox(width: isSmallScreen ? 6 : 8),
+                Expanded(
+                  child: Text(
+                    'Daily ad limit reached (2/2). Upgrade for unlimited credits.',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 11 : 12,
+                      color: Colors.orange[700],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -357,29 +401,28 @@ class CreditsDialog extends ConsumerWidget {
           ),
         ),
         SizedBox(width: isSmallScreen ? 8 : 12),
-        if (!isFreePlan)
-          Expanded(
-            child: ElevatedButton(
-              onPressed: onUpgrade,
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 12 : 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 12),
-                ),
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                elevation: 2,
-                shadowColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: onUpgrade,
+            style: ElevatedButton.styleFrom(
+              padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 12 : 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 12),
               ),
-              child: Text(
-                'Upgrade',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 13 : 14,
-                  fontWeight: FontWeight.w600,
-                ),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shadowColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            ),
+            child: Text(
+              'Upgrade',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 13 : 14,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
+        ),
       ],
     );
   }
@@ -408,4 +451,3 @@ void showCreditsDialog({
     ),
   );
 }
-

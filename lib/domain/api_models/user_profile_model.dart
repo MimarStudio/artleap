@@ -57,7 +57,9 @@ class User {
   final List<dynamic> paymentMethods;
   final bool watermarkEnabled;
   final int? v;
-
+  final int rewardDailyCount;
+  final int rewardTotalCount;
+  final DateTime? rewardLastRewardDate;
   final PrivacyPolicyAcceptance? privacyPolicyAccepted;
   final UserInterests? interests;
 
@@ -90,6 +92,9 @@ class User {
     required this.paymentMethods,
     required this.watermarkEnabled,
     this.v,
+    this.rewardDailyCount = 0,
+    this.rewardTotalCount = 0,
+    this.rewardLastRewardDate,
     this.privacyPolicyAccepted,
     this.interests,
   });
@@ -124,7 +129,9 @@ class User {
       paymentMethods: List.castFrom<dynamic, dynamic>(json['paymentMethods'] ?? []),
       watermarkEnabled: json['watermarkEnabled'] ?? true,
       v: json['__v'],
-      // New fields parsing
+      rewardDailyCount: json['rewardCount']?['dailyCount'] ?? 0,
+      rewardTotalCount: json['rewardCount']?['totalCount'] ?? 0,
+      rewardLastRewardDate: json['rewardCount']?['lastRewardDate'] != null ? DateTime.parse(json['rewardCount']['lastRewardDate']) : null,
       privacyPolicyAccepted: json['privacyPolicyAccepted'] != null
           ? PrivacyPolicyAcceptance.fromJson(json['privacyPolicyAccepted'])
           : null,
@@ -172,7 +179,12 @@ class User {
       data['__v'] = v;
     }
 
-    // New fields toJson
+    data['rewardCount'] = {
+      'dailyCount': rewardDailyCount,
+      'totalCount': rewardTotalCount,
+      'lastRewardDate': rewardLastRewardDate?.toIso8601String(),
+    };
+
     if (privacyPolicyAccepted != null) {
       data['privacyPolicyAccepted'] = privacyPolicyAccepted!.toJson();
     }
@@ -184,6 +196,9 @@ class User {
   }
 
   User copyWith({
+    int? rewardDailyCount,
+    int? rewardTotalCount,
+    DateTime? rewardLastRewardDate,
     PrivacyPolicyAcceptance? privacyPolicyAccepted,
     UserInterests? interests,
   }) {
@@ -216,12 +231,14 @@ class User {
       paymentMethods: paymentMethods,
       watermarkEnabled: watermarkEnabled,
       v: v,
+      rewardDailyCount: rewardDailyCount ?? this.rewardDailyCount,
+      rewardTotalCount: rewardTotalCount ?? this.rewardTotalCount,
+      rewardLastRewardDate: rewardLastRewardDate ?? this.rewardLastRewardDate,
       privacyPolicyAccepted: privacyPolicyAccepted ?? this.privacyPolicyAccepted,
       interests: interests ?? this.interests,
     );
   }
 }
-
 
 class Following {
   final String id;
