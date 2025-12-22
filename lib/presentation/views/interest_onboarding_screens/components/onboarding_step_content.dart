@@ -28,7 +28,7 @@ class OnboardingStepContent extends ConsumerWidget {
     final isSmallScreen = mediaQuery.size.width < 600;
     final safePadding = mediaQuery.padding;
 
-    if (isLastStep) {
+    if (currentStep == 0 || currentStep == 1 || currentStep == 2) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
       });

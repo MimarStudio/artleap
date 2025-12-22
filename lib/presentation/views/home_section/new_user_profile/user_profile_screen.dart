@@ -7,50 +7,120 @@ class UserProfileScreen extends ConsumerStatefulWidget {
   static const String routeName = "user_profile_screen";
 
   @override
-  ConsumerState<ConsumerStatefulWidget> createState() =>
+  ConsumerState<UserProfileScreen> createState() =>
       _UserProfileScreenState();
 }
 
 class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
+  late final ProviderSubscription<InterstitialAdState> _adListener;
+
+  bool _isAdNavigationPending = false;
+  String? _pendingRouteName;
+
   @override
   void initState() {
     super.initState();
+
+    /// Post-frame setup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (UserData.ins.userId != null) {
-        ref.read(userProfileProvider.notifier).getUserProfileData(UserData.ins.userId!);
+        ref
+            .read(userProfileProvider.notifier)
+            .getUserProfileData(UserData.ins.userId!);
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
         );
       }
-      AnalyticsService.instance.logScreenView(screenName: 'profile screen');
 
-      // Pre-load the interstitial ad when screen opens
-      ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+      AnalyticsService.instance
+          .logScreenView(screenName: 'profile screen');
+
+      ref
+          .read(interstitialAdStateProvider.notifier)
+          .loadInterstitialAd();
     });
+
+    /// ✅ CORRECT Riverpod listener for initState
+    _adListener = ref.listenManual<InterstitialAdState>(
+      interstitialAdStateProvider,
+          (previous, next) {
+        if (previous?.isShowing == true &&
+            next.isShowing == false &&
+            _isAdNavigationPending) {
+          _executeNavigation();
+        }
+      },
+    );
+  }
+
+  /// Trigger navigation with ad
+  Future<void> _handleNavigation(String routeName) async {
+    if (_isAdNavigationPending) return;
+
+    _isAdNavigationPending = true;
+    _pendingRouteName = routeName;
+
+    final didShowAd = await ref
+        .read(interstitialAdStateProvider.notifier)
+        .showInterstitialAd();
+
+    /// If ad failed → navigate immediately
+    if (!didShowAd) {
+      _executeNavigation();
+    }
+  }
+
+  /// Execute actual navigation
+  void _executeNavigation() {
+    final route = _pendingRouteName;
+
+    _resetNavigationState();
+
+    if (!mounted || route == null) return;
+
+    if (route == 'saved-images-screens') {
+      Navigator.of(context).pushNamed(route);
+    } else if (route == NotificationScreen.routeName) {
+      Navigator.of(context)
+          .pushNamed(NotificationScreen.routeName);
+    }
+  }
+
+  void _resetNavigationState() {
+    _isAdNavigationPending = false;
+    _pendingRouteName = null;
+  }
+
+  @override
+  void dispose() {
+    _adListener.close(); // ✅ REQUIRED
+    _resetNavigationState();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final safeAreaBottom = MediaQuery.of(context).padding.bottom;
-    final userProfile = ref.watch(userProfileProvider);
-    final userPersonalData = userProfile.value!.userProfile;
-    final user = userPersonalData?.user;
-    final profilePic = user?.profilePic;
-    final userName = user?.username ?? 'User';
-    final theme = Theme.of(context);
 
-    if (user == null || userPersonalData == null) {
+    final userProfileAsync = ref.watch(userProfileProvider);
+
+    if (userProfileAsync.isLoading ||
+        userProfileAsync.value?.userProfile == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
+    final userPersonalData = userProfileAsync.value!.userProfile!;
+    final user = userPersonalData.user;
+    final theme = Theme.of(context);
+
     return PopScope(
       canPop: false,
-      onPopInvoked: (bool didPop) async {
+      onPopInvoked: (didPop) {
         if (!didPop) {
           ref.read(bottomNavBarProvider).setPageIndex(0);
         }
@@ -59,244 +129,197 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         backgroundColor: Colors.deepPurple,
         body: SafeArea(
           bottom: false,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: screenHeight * 0.2,
-                      child: Align(
-                        alignment: Alignment.topRight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 16, right: 16),
-                          child: Consumer(
-                            builder: (context, ref, _) {
-                              final userId = UserData.ins.userId;
-                              if (userId == null) return const SizedBox();
+          child: CustomScrollView(
+            slivers: [
+              /// Top actions
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: screenHeight * 0.2,
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding:
+                      const EdgeInsets.only(top: 16, right: 16),
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final userId = UserData.ins.userId;
+                          if (userId == null) {
+                            return const SizedBox();
+                          }
 
-                              final notifications =
-                              ref.watch(notificationProvider(userId));
-                              final unreadCount = notifications.maybeWhen(
-                                data: (notifs) =>
-                                notifs.where((n) => !n.isRead).length,
-                                orElse: () => 0,
-                              );
-                              return Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  // Saved Images button with ad
-                                  IconButton(
-                                    icon: Icon(Icons.save,
-                                        color: theme.colorScheme.onPrimary),
-                                    onPressed: () async {
-                                      final didShowAd =
-                                      await ref.read(interstitialAdStateProvider.notifier).showInterstitialAd();
+                          final notifications =
+                          ref.watch(notificationProvider(userId));
 
-                                      if (!didShowAd) {
-                                        // If ad wasn't shown, navigate immediately
-                                        Navigator.of(context)
-                                            .pushNamed('saved-images-screens');
-                                      } else {
-                                        // If ad is being shown, wait for it to close
-                                        ref.listen(interstitialAdStateProvider, (previous, next) {
-                                          if (previous?.isShowing == true && next.isShowing == false) {
-                                            Navigator.of(context)
-                                                .pushNamed('saved-images-screens');
-                                          }
-                                        });
-                                      }
-                                    },
-                                    tooltip: "Saved Images",
-                                  ),
+                          final unreadCount =
+                          notifications.maybeWhen(
+                            data: (notifs) =>
+                            notifs.where((n) => !n.isRead).length,
+                            orElse: () => 0,
+                          );
 
-                                  // Notifications button with ad
-                                  IconButton(
-                                    icon: Badge(
-                                      label: unreadCount > 0
-                                          ? Text(unreadCount.toString())
-                                          : null,
-                                      child: Icon(Icons.notifications,
-                                          color: theme.colorScheme.onPrimary,
-                                          size: 30),
-                                    ),
-                                    onPressed: () async {
-                                      final didShowAd =
-                                      await ref.read(interstitialAdStateProvider.notifier).showInterstitialAd();
-
-                                      if (!didShowAd) {
-                                        // If ad wasn't shown, navigate immediately
-                                        Navigator.pushNamed(context, NotificationScreen.routeName);
-                                      } else {
-                                        // If ad is being shown, wait for it to close
-                                        ref.listen(interstitialAdStateProvider, (previous, next) {
-                                          if (previous?.isShowing == true && next.isShowing == false) {
-                                            Navigator.pushNamed(context, NotificationScreen.routeName);
-                                          }
-                                        });
-                                      }
-                                    },
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Container(
-                      constraints: BoxConstraints(
-                        minHeight: screenHeight -
-                            (screenHeight * 0.2) -
-                            MediaQuery.of(context).padding.top,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(20)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.colorScheme.shadow.withOpacity(0.1),
-                            blurRadius: 10,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          left: 16,
-                          right: 16,
-                          top: 16,
-                          bottom: 16 + safeAreaBottom,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Transform.translate(
-                              offset: const Offset(0, -60),
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 15.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      width: 100,
-                                      height: 100,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                            color: theme.colorScheme.surface,
-                                            width: 4),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: theme.colorScheme.shadow
-                                                .withOpacity(0.1),
-                                            blurRadius: 8,
-                                            spreadRadius: 2,
-                                          ),
-                                        ],
-                                        image: profilePic != null &&
-                                            profilePic.isNotEmpty
-                                            ? DecorationImage(
-                                          image: NetworkImage(profilePic),
-                                          fit: BoxFit.cover,
-                                        )
-                                            : const DecorationImage(
-                                          image: AssetImage(
-                                              AppAssets.artstyle1),
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      userName.toUpperCase(),
-                                      style: AppTextstyle.interBold(
-                                        fontSize: 22,
-                                        color: theme.colorScheme.onSurface,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '@${user.email}',
-                                      style: AppTextstyle.interMedium(
-                                        fontSize: 16,
-                                        color: theme.colorScheme.onSurface
-                                            .withOpacity(0.6),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Creating images just for fun',
-                                      style: AppTextstyle.interRegular(
-                                        fontSize: 15,
-                                        color: theme.colorScheme.onSurface,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Row(
-                                      mainAxisAlignment:
-                                      MainAxisAlignment.start,
-                                      crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                      children: [
-                                        _buildStatColumn(
-                                          userPersonalData.user.followers.length
-                                              .toString(),
-                                          'Followers',
-                                          theme,
-                                        ),
-                                        const SizedBox(width: 30),
-                                        _buildStatColumn(
-                                          userPersonalData.user.following.length
-                                              .toString(),
-                                          'Following',
-                                          theme,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.auto_awesome,
-                                            color: theme.colorScheme.primary),
-                                        const SizedBox(width: 10),
-                                        Text(
-                                          '${userPersonalData.user.images.length.toString()} Generations',
-                                          style: AppTextstyle.interMedium(
-                                            fontSize: 18,
-                                            color: theme.colorScheme.primary,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.save,
+                                    color: theme
+                                        .colorScheme.onPrimary),
+                                tooltip: "Saved Images",
+                                onPressed: () {
+                                  _handleNavigation(
+                                      'saved-images-screens');
+                                },
                               ),
-                            ),
-                            MyCreationsWidget(
-                              listofCreations: userPersonalData.user.images,
-                              userName: userName,
-                              userId: user.id,
-                            ),
-                          ],
-                        ),
+                              IconButton(
+                                icon: Badge(
+                                  label: unreadCount > 0
+                                      ? Text(unreadCount.toString())
+                                      : null,
+                                  child: Icon(
+                                    Icons.notifications,
+                                    color: theme
+                                        .colorScheme.onPrimary,
+                                    size: 30,
+                                  ),
+                                ),
+                                onPressed: () {
+                                  _handleNavigation(
+                                      NotificationScreen.routeName);
+                                },
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
-                ],
-              );
-            },
+                ),
+              ),
+
+              /// Profile content
+              SliverToBoxAdapter(
+                child: Container(
+                  constraints: BoxConstraints(
+                    minHeight: screenHeight -
+                        (screenHeight * 0.2) -
+                        MediaQuery.of(context).padding.top,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.shadow.withOpacity(0.1),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      top: 16,
+                      bottom: 16 + safeAreaBottom,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Transform.translate(
+                          offset: const Offset(0, -60),
+                          child: Padding(
+                            padding:
+                            const EdgeInsets.only(left: 15.0),
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                              children: [
+                                _buildProfileHeader(
+                                    user, theme, userPersonalData),
+                              ],
+                            ),
+                          ),
+                        ),
+                        MyCreationsWidget(
+                          listofCreations:
+                          userPersonalData.user.images,
+                          userName: user.username ?? 'User',
+                          userId: user.id,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildStatColumn(String value, String label, ThemeData theme) {
+  Widget _buildProfileHeader(
+      dynamic user, ThemeData theme, dynamic userPersonalData) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border:
+            Border.all(color: theme.colorScheme.surface, width: 4),
+            image: user.profilePic != null &&
+                user.profilePic!.isNotEmpty
+                ? DecorationImage(
+              image: NetworkImage(user.profilePic!),
+              fit: BoxFit.cover,
+            )
+                : const DecorationImage(
+              image: AssetImage(AppAssets.artstyle1),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          (user.username ?? 'User').toUpperCase(),
+          style: AppTextstyle.interBold(
+              fontSize: 22,
+              color: theme.colorScheme.onSurface),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '@${user.email}',
+          style: AppTextstyle.interMedium(
+            fontSize: 16,
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            _buildStatColumn(
+              userPersonalData.user.followers.length.toString(),
+              'Followers',
+              theme,
+            ),
+            const SizedBox(width: 30),
+            _buildStatColumn(
+              userPersonalData.user.following.length.toString(),
+              'Following',
+              theme,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatColumn(
+      String value, String label, ThemeData theme) {
     return Row(
       children: [
         Text(

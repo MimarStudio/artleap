@@ -27,6 +27,11 @@ class NativeAdPostWidget extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    final isAdReady = ref.read(nativeAdProvider.notifier).isAdReady(adIndex);
+    if (!isAdReady) {
+      return _buildAdPlaceholder(context, theme);
+    }
+
     final nativeAd = adState.nativeAds[adIndex];
 
     return Container(
@@ -88,18 +93,39 @@ class NativeAdPostWidget extends ConsumerWidget {
             ),
           ),
           Container(
-            height: 320,
+            height: 400,
+            width: double.infinity,
             padding: const EdgeInsets.all(12),
             child: AdWidget(ad: nativeAd),
           ),
+
+          // Optional footer
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Text(
-              'Advertisement content',
-              style: TextStyle(
-                fontSize: 10,
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
-              ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 10,
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Advertisement',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'Ad • ${DateTime.now().year}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -122,21 +148,41 @@ class NativeAdPostWidget extends ConsumerWidget {
           ),
         ],
       ),
-      height: 320,
+      height: 400,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.ads_click,
+                size: 20,
+                color: theme.colorScheme.primary.withOpacity(0.6),
+              ),
             ),
             const SizedBox(height: 12),
             Text(
-              'Loading ad...',
+              'Loading advertisement...',
               style: TextStyle(
                 fontSize: 12,
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: 100,
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                backgroundColor: theme.colorScheme.surface,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  theme.colorScheme.primary,
+                ),
               ),
             ),
           ],

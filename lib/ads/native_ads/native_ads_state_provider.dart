@@ -7,12 +7,13 @@ StateNotifierProvider<NativeAdNotifier, NativeAdState>((ref) {
 
 class NativeAdState {
   final List<NativeAd> nativeAds;
-  final List<bool> adReadyStatus; // Track which ads are actually ready
+  final List<bool> adReadyStatus;
   final bool isLoading;
   final bool isLoaded;
   final bool showAds;
   final int retryCount;
   final String? errorMessage;
+  final TemplateType templateType;
 
   NativeAdState({
     List<NativeAd>? nativeAds,
@@ -22,6 +23,7 @@ class NativeAdState {
     this.showAds = true,
     this.retryCount = 0,
     this.errorMessage,
+    this.templateType = TemplateType.medium,
   })  : nativeAds = nativeAds ?? [],
         adReadyStatus = adReadyStatus ?? [];
 
@@ -33,6 +35,7 @@ class NativeAdState {
     bool? showAds,
     int? retryCount,
     String? errorMessage,
+    TemplateType? templateType,
   }) {
     return NativeAdState(
       nativeAds: nativeAds ?? this.nativeAds,
@@ -42,6 +45,7 @@ class NativeAdState {
       showAds: showAds ?? this.showAds,
       retryCount: retryCount ?? this.retryCount,
       errorMessage: errorMessage,
+      templateType: templateType ?? this.templateType,
     );
   }
 }
@@ -49,7 +53,19 @@ class NativeAdState {
 class NativeAdNotifier extends StateNotifier<NativeAdState> {
   NativeAdNotifier() : super(NativeAdState());
 
+  Future<void> loadSmallNativeAds() async {
+    await _loadAds(TemplateType.small, 3);
+  }
+
   Future<void> loadMultipleAds() async {
+    await _loadAds(TemplateType.medium, 5);
+  }
+
+  Future<void> loadNativeAd() async {
+    await _loadAds(TemplateType.medium, 1);
+  }
+
+  Future<void> _loadAds(TemplateType templateType, int adCount) async {
     final config = RemoteConfigService.instance;
 
     if (!config.showNativeAds) {
@@ -58,15 +74,10 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     }
 
     if (state.isLoading) return;
-
-    // Dispose old ads
     for (var ad in state.nativeAds) {
       ad.dispose();
     }
 
-    const int adCount = 5;
-
-    // Pre-fill lists
     final List<NativeAd?> ads = List.filled(adCount, null);
     final List<bool> ready = List.filled(adCount, false);
 
@@ -75,9 +86,11 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
       adReadyStatus: [],
       isLoading: true,
       isLoaded: false,
+      templateType: templateType,
     );
 
     int completed = 0;
+    final double cornerRadius = templateType == TemplateType.small ? 8 : 12;
 
     for (int i = 0; i < adCount; i++) {
       final index = i;
@@ -86,8 +99,8 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
         adUnitId: config.nativeAdUnit,
         request: const AdRequest(),
         nativeTemplateStyle: NativeTemplateStyle(
-          templateType: TemplateType.medium,
-          cornerRadius: 12,
+          templateType: templateType,
+          cornerRadius: cornerRadius,
         ),
         listener: NativeAdListener(
           onAdLoaded: (ad) {
@@ -136,8 +149,6 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     );
   }
 
-
-  // Check if a specific ad is ready to be displayed
   bool isAdReady(int index) {
     if (index >= 0 &&
         index < state.nativeAds.length &&
@@ -147,6 +158,7 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     return false;
   }
 
+  // Initialize ad (for first load)
   Future<void> loadInitialAd() async {
     final config = RemoteConfigService.instance;
 
@@ -196,63 +208,6 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     );
 
     ad.load();
-  }
-
-  Future<void> loadNativeAd() async {
-    final config = RemoteConfigService.instance;
-
-    if (!config.showNativeAds) {
-      state = state.copyWith(showAds: false);
-      return;
-    }
-
-    if (state.isLoading) return;
-
-    for (var ad in state.nativeAds) {
-      ad.dispose();
-    }
-
-    state = state.copyWith(
-      nativeAds: [],
-      adReadyStatus: [],
-      isLoading: true,
-      isLoaded: false,
-      errorMessage: null,
-    );
-
-    final ad = NativeAd(
-      adUnitId: config.nativeAdUnit,
-      request: const AdRequest(),
-      nativeTemplateStyle: NativeTemplateStyle(
-        templateType: TemplateType.medium,
-        cornerRadius: 12,
-      ),
-      listener: NativeAdListener(
-        onAdLoaded: (ad) {
-          state = state.copyWith(
-            nativeAds: [ad as NativeAd],
-            adReadyStatus: [true],
-            isLoading: false,
-            isLoaded: true,
-            retryCount: 0,
-            errorMessage: null,
-          );
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-          state = state.copyWith(
-            nativeAds: [],
-            adReadyStatus: [],
-            isLoading: false,
-            isLoaded: false,
-            retryCount: state.retryCount + 1,
-            errorMessage: error.message,
-          );
-        },
-      ),
-    );
-
-    await ad.load();
   }
 
   void disposeAd() {

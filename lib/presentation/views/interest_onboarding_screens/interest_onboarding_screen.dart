@@ -10,16 +10,6 @@ class InterestOnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScreen> {
-  @override
-  void initState() {
-    super.initState();
-
-    // Load the native ad when screen opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(nativeAdProvider.notifier).loadMultipleAds();
-    });
-  }
-
   Future<void> _saveUserInterests(WidgetRef ref, BuildContext context) async {
     final selectedOptions = ref.read(selectedOptionsProvider);
     final onboardingData = ref.read(onboardingDataProvider);
@@ -93,8 +83,6 @@ class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScr
     final currentStepData = onboardingData[currentStep];
     final currentSelection = selectedOptions[currentStep];
 
-    final adState = ref.watch(nativeAdProvider);
-
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
@@ -142,13 +130,6 @@ class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScr
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (adState.showAds && adState.isLoaded && adState.nativeAds.isNotEmpty)
-                        _buildNativeAdWidget(
-                          adState,
-                          currentStep,
-                          isSmallScreen,
-                          context,
-                        ),
                       Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: isSmallScreen ? 16.0 : 32.0,
@@ -170,9 +151,6 @@ class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScr
                           currentStep == onboardingData.length - 1,
                         ),
                       ),
-
-                      // Optional: You can show another ad at bottom if needed
-                      // But based on your request, ad should be at top
                     ],
                   ),
                 ),
@@ -180,32 +158,6 @@ class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScr
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildNativeAdWidget(
-      NativeAdState adState,
-      int currentStep,
-      bool isSmallScreen,
-      BuildContext context,
-      ) {
-    if (!adState.isLoaded || adState.nativeAds.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final index = currentStep % adState.nativeAds.length;
-    final ad = adState.nativeAds[index];
-
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isSmallScreen ? 16 : 32,
-        vertical: 8,
-      ),
-      child: Container(
-        height: 320,
-        padding: const EdgeInsets.all(12),
-        child: AdWidget(ad: ad),
       ),
     );
   }

@@ -172,7 +172,6 @@ export 'package:Artleap.ai/domain/api_repos_impl/add_to_fav_impl.dart';
 export 'package:Artleap.ai/domain/subscriptions/subscription_repo_impl.dart';
 
 export 'package:Artleap.ai/ads/native_ads/native_ad_post_widget.dart';
-export'package:Artleap.ai/ads/native_ads/native_ad_state_feed.dart';
 export 'package:Artleap.ai/presentation/views/home_section/new_comunity_screen/components/communiry_header.dart';
 export 'package:Artleap.ai/presentation/views/home_section/new_comunity_screen/components/post_card.dart';
 
