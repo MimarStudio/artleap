@@ -93,7 +93,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     final mainApp = MaterialApp(
       title: 'Artleap.ai',
       debugShowCheckedModeBanner: false,
-      supportedLocales: AppLocalization.supportedLocales,
+      supportedLocales: AppLocalization.supportedLocales,t branch
       locale: ref.watch(localizationProvider),
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
