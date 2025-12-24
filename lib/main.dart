@@ -31,6 +31,7 @@ class MyApp extends ConsumerStatefulWidget {
 
 class _MyAppState extends ConsumerState<MyApp> {
   Timer? _refreshTokenTimer;
+  Timer? _tokenRegistrationTimer;
   late StreamSubscription<List<PurchaseDetails>> _subscription;
   late PurchaseHandler _purchaseHandler;
 
@@ -75,12 +76,19 @@ class _MyAppState extends ConsumerState<MyApp> {
           debugPrint('Token refresh skipped: No user signed in.');
         }
       });
+
+      _tokenRegistrationTimer = Timer.periodic(const Duration(hours: 6), (_) async {
+        await ref.read(authprovider).ensureDeviceTokenRegistration();
+      });
+
+      await AppInitialization.ensureDeviceTokenOnAppStartWidgetRef(ref);
     });
   }
 
   @override
   void dispose() {
     _refreshTokenTimer?.cancel();
+    _tokenRegistrationTimer?.cancel();
     _subscription.cancel();
     super.dispose();
   }

@@ -119,47 +119,13 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isSmallScreen ? 16 : 24,
+        horizontal: isSmallScreen ? 10 : 20,
         vertical: 12,
       ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Ad label
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Icon(
-                Icons.ads_click,
-                size: 12,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Advertisement',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Ad widget
-          SizedBox(
-            height: isSmallScreen ? 90 : 100,
-            width: double.infinity,
-            child: AdWidget(ad: ad),
-          ),
-        ],
+      child: SizedBox(
+        height: isSmallScreen ? 120 : 140,
+        width: double.infinity,
+        child: AdWidget(ad: ad),
       ),
     );
   }

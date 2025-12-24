@@ -87,23 +87,93 @@ class AppInitialization {
 
   static Future<void> registerUserDeviceToken(Ref ref) async {
     try {
-      final userId = UserData.ins.userId;
+      dynamic userId = UserData.ins.userId;
       if (userId == null || userId.isEmpty) {
-        return;
+        final storedUserId = AppLocal.ins.getUSerData(Hivekey.userId);
+        if (storedUserId == null || storedUserId.isEmpty) {
+          debugPrint('No user ID available for device token registration');
+          return;
+        }
+        userId = storedUserId;
+      }
+
+      final messaging = FirebaseMessaging.instance;
+
+      await messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+
+      final token = await messaging.getToken();
+      debugPrint('FCM Token: $token');
+
+      if (token != null && token.isNotEmpty) {
+        final repo = ref.read(notificationRepositoryProvider);
+        try {
+          await repo.registerDeviceToken(userId.toString(), token);
+          debugPrint('Device token registered successfully for user: $userId');
+        } catch (e) {
+          debugPrint('Failed to register device token: $e');
+        }
+      } else {
+        debugPrint('No FCM token available');
+      }
+
+      messaging.onTokenRefresh.listen((newToken) async {
+        debugPrint('FCM Token refreshed: $newToken');
+        if (userId != null && userId.toString().isNotEmpty) {
+          final repo = ref.read(notificationRepositoryProvider);
+          try {
+            await repo.registerDeviceToken(userId.toString(), newToken);
+            debugPrint('Refreshed token registered for user: $userId');
+          } catch (e) {
+            debugPrint('Failed to register refreshed token: $e');
+          }
+        }
+      });
+    } catch (e, stack) {
+      debugPrint('Error registering device token: $e');
+      debugPrint(stack.toString());
+    }
+  }
+
+  static Future<void> registerUserDeviceTokenWidgetRef(WidgetRef ref) async {
+    try {
+      dynamic userId = UserData.ins.userId;
+      if (userId == null || userId.isEmpty) {
+        final storedUserId = AppLocal.ins.getUSerData(Hivekey.userId);
+        if (storedUserId == null || storedUserId.isEmpty) {
+          return;
+        }
+        userId = storedUserId;
       }
 
       final messaging = FirebaseMessaging.instance;
       final token = await messaging.getToken();
 
-      if (token != null) {
+      if (token != null && token.isNotEmpty) {
         final repo = ref.read(notificationRepositoryProvider);
-        await repo.registerDeviceToken(userId, token);
+        try {
+          await repo.registerDeviceToken(userId.toString(), token);
+          debugPrint('Device token registered successfully for user: $userId');
+        } catch (e) {
+          debugPrint('Failed to register device token: $e');
+        }
       }
 
       messaging.onTokenRefresh.listen((newToken) async {
-        if (UserData.ins.userId != null) {
+        if (userId != null && userId.toString().isNotEmpty) {
           final repo = ref.read(notificationRepositoryProvider);
-          await repo.registerDeviceToken(UserData.ins.userId!, newToken);
+          try {
+            await repo.registerDeviceToken(userId.toString(), newToken);
+          } catch (e) {
+            debugPrint('Failed to register refreshed token: $e');
+          }
         }
       });
     } catch (e, stack) {
@@ -111,29 +181,27 @@ class AppInitialization {
     }
   }
 
-  static Future<void> registerUserDeviceTokenRef(WidgetRef ref) async {
+  static Future<void> ensureDeviceTokenOnAppStart(Ref ref) async {
     try {
-      final userId = UserData.ins.userId;
-      if (userId == null || userId.isEmpty) {
-        return;
+      final userId = AppLocal.ins.getUSerData(Hivekey.userId);
+      if (userId != null && userId.isNotEmpty) {
+        await Future.delayed(Duration(seconds: 2));
+        await registerUserDeviceToken(ref);
       }
+    } catch (e) {
+      debugPrint('Error ensuring device token on app start: $e');
+    }
+  }
 
-      final messaging = FirebaseMessaging.instance;
-      final token = await messaging.getToken();
-
-      if (token != null) {
-        final repo = ref.read(notificationRepositoryProvider);
-        await repo.registerDeviceToken(userId, token);
+  static Future<void> ensureDeviceTokenOnAppStartWidgetRef(WidgetRef ref) async {
+    try {
+      final userId = AppLocal.ins.getUSerData(Hivekey.userId);
+      if (userId != null && userId.isNotEmpty) {
+        await Future.delayed(Duration(seconds: 2));
+        await registerUserDeviceTokenWidgetRef(ref);
       }
-
-      messaging.onTokenRefresh.listen((newToken) async {
-        if (UserData.ins.userId != null) {
-          final repo = ref.read(notificationRepositoryProvider);
-          await repo.registerDeviceToken(UserData.ins.userId!, newToken);
-        }
-      });
-    } catch (e, stack) {
-      debugPrint(stack.toString());
+    } catch (e) {
+      debugPrint('Error ensuring device token on app start: $e');
     }
   }
 }

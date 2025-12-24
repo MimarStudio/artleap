@@ -102,6 +102,10 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
           templateType: templateType,
           cornerRadius: cornerRadius,
         ),
+        nativeAdOptions: NativeAdOptions(
+          videoOptions: VideoOptions(startMuted: true),
+          mediaAspectRatio: MediaAspectRatio.square,
+        ),
         listener: NativeAdListener(
           onAdLoaded: (ad) {
             ads[index] = ad as NativeAd;
@@ -159,56 +163,60 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
   }
 
   // Initialize ad (for first load)
-  Future<void> loadInitialAd() async {
-    final config = RemoteConfigService.instance;
-
-    if (!config.showNativeAds) {
-      state = state.copyWith(showAds: false);
-      return;
-    }
-
-    if (state.isLoading || state.isLoaded) return;
-
-    if (!AdService.instance.isInitialized) {
-      await AdService.instance.initialize();
-    }
-
-    state = state.copyWith(isLoading: true, errorMessage: null);
-
-    final ad = NativeAd(
-      adUnitId: config.nativeAdUnit,
-      request: const AdRequest(),
-      nativeTemplateStyle: NativeTemplateStyle(
-        templateType: TemplateType.medium,
-        cornerRadius: 12,
-      ),
-      listener: NativeAdListener(
-        onAdLoaded: (ad) {
-          state = state.copyWith(
-            nativeAds: [ad as NativeAd],
-            adReadyStatus: [true],
-            isLoading: false,
-            isLoaded: true,
-            retryCount: 0,
-            errorMessage: null,
-          );
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-          state = state.copyWith(
-            nativeAds: [],
-            adReadyStatus: [],
-            isLoading: false,
-            isLoaded: false,
-            retryCount: state.retryCount + 1,
-            errorMessage: error.message,
-          );
-        },
-      ),
-    );
-
-    ad.load();
-  }
+  // Future<void> loadInitialAd() async {
+  //   final config = RemoteConfigService.instance;
+  //
+  //   if (!config.showNativeAds) {
+  //     state = state.copyWith(showAds: false);
+  //     return;
+  //   }
+  //
+  //   if (state.isLoading || state.isLoaded) return;
+  //
+  //   if (!AdService.instance.isInitialized) {
+  //     await AdService.instance.initialize();
+  //   }
+  //
+  //   state = state.copyWith(isLoading: true, errorMessage: null);
+  //
+  //   final ad = NativeAd(
+  //     adUnitId: config.nativeAdUnit,
+  //     request: const AdRequest(),
+  //     nativeTemplateStyle: NativeTemplateStyle(
+  //       templateType: TemplateType.medium,
+  //       cornerRadius: 12,
+  //     ),
+  //     nativeAdOptions: NativeAdOptions(
+  //       videoOptions: VideoOptions(startMuted: true),
+  //       mediaAspectRatio: MediaAspectRatio.square,
+  //     ),
+  //     listener: NativeAdListener(
+  //       onAdLoaded: (ad) {
+  //         state = state.copyWith(
+  //           nativeAds: [ad as NativeAd],
+  //           adReadyStatus: [true],
+  //           isLoading: false,
+  //           isLoaded: true,
+  //           retryCount: 0,
+  //           errorMessage: null,
+  //         );
+  //       },
+  //       onAdFailedToLoad: (ad, error) {
+  //         ad.dispose();
+  //         state = state.copyWith(
+  //           nativeAds: [],
+  //           adReadyStatus: [],
+  //           isLoading: false,
+  //           isLoaded: false,
+  //           retryCount: state.retryCount + 1,
+  //           errorMessage: error.message,
+  //         );
+  //       },
+  //     ),
+  //   );
+  //
+  //   ad.load();
+  // }
 
   void disposeAd() {
     for (var ad in state.nativeAds) {

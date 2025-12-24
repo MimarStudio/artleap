@@ -1,21 +1,10 @@
-import 'package:Artleap.ai/main/app_initialization.dart';
-import 'package:Artleap.ai/presentation/views/common/privacy_policy_accept.dart';
-import 'package:Artleap.ai/presentation/views/login_and_signup_section/login_section/login_screen.dart';
-import 'package:Artleap.ai/shared/utilities/navigation_manager.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:Artleap.ai/domain/base_repo/base_repo.dart';
-import 'package:Artleap.ai/providers/user_profile_provider.dart';
-import 'package:Artleap.ai/shared/app_persistance/app_local.dart';
 import '../domain/api_services/api_response.dart';
 import '../domain/auth_services/auth_services.dart';
-import '../shared/app_persistance/app_data.dart';
 import '../shared/auth_exception_handler/auth_exception_handler.dart';
-import '../shared/utilities/general_methods.dart';
-import '../shared/navigation/navigation.dart';
-import '../shared/navigation/navigator_key.dart';
+import 'package:Artleap.ai/shared/route_export.dart';
+
 
 enum ObsecureText { loginPassword, signupPassword, confirmPassword }
 
@@ -480,7 +469,6 @@ class AuthProvider extends ChangeNotifier with BaseRepo {
     try {
       final navigatorContext = navigatorKey.currentContext;
       if (navigatorContext != null && navigatorContext.mounted) {
-        // Get user data from local storage
         final userId = AppLocal.ins.getUSerData(Hivekey.userId) ?? "";
         final userName = AppLocal.ins.getUSerData(Hivekey.userName) ?? "";
         final userEmail = AppLocal.ins.getUSerData(Hivekey.userEmail) ?? "";
@@ -496,13 +484,22 @@ class AuthProvider extends ChangeNotifier with BaseRepo {
           hasSeenTutorial: await ArtleapNavigationManager.getTutorialStatusWithRef(reference),
         );
       } else {
-        // Fallback navigation
         Navigation.pushNamedAndRemoveUntil(AcceptPrivacyPolicyScreen.routeName);
       }
     } catch (e) {
       print('Navigation error: $e');
-      // Fallback to privacy policy screen on error
       Navigation.pushNamedAndRemoveUntil(AcceptPrivacyPolicyScreen.routeName);
+    }
+  }
+
+  Future<void> ensureDeviceTokenRegistration() async {
+    try {
+      final userId = AppLocal.ins.getUSerData(Hivekey.userId);
+      if (userId != null && userId.isNotEmpty) {
+        await AppInitialization.registerUserDeviceToken(reference);
+      }
+    } catch (e) {
+      print('Error ensuring device token registration: $e');
     }
   }
 }
