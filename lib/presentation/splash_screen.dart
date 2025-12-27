@@ -1,4 +1,7 @@
+import 'package:Artleap.ai/domain/notifications_repo/notification_repository.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   static const String routeName = "splash_screen";
@@ -13,8 +16,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _controller;
   bool _hasNavigated = false;
   bool _initialized = false;
+  bool _deviceTokenRegistered = false;
   DateTime? _startTime;
-
 
   @override
   void initState() {
@@ -138,6 +141,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
       await ref.read(remoteConfigProvider).fetchAndActivate();
 
+      await _registerDeviceTokenIfNeeded();
+
       final showAppOpenAds = ref.read(appOpenAdsEnabledProvider);
 
       if (showAppOpenAds) {
@@ -168,12 +173,78 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         hasSeenTutorial: hasSeenTutorial,
       );
     } catch (e) {
+      print('SplashScreen: Error in navigation: $e');
       if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil(
           LoginScreen.routeName,
               (Route<dynamic> route) => false,
         );
       }
+    }
+  }
+
+  Future<void> _registerDeviceTokenIfNeeded() async {
+    try {
+      if (_deviceTokenRegistered) {
+        debugPrint('Device token already registered in this session');
+        return;
+      }
+      String? userId;
+
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        userId = firebaseUser.uid;
+        debugPrint('Found Firebase user: $userId');
+      }
+
+      if (userId == null || userId.isEmpty) {
+        userId = AppLocal.ins.getUSerData(Hivekey.userId);
+        if (userId != null && userId.isNotEmpty) {
+          debugPrint('Found user in local storage: $userId');
+        }
+      }
+
+      if ((userId == null || userId.isEmpty) &&
+          UserData.ins.userId != null &&
+          UserData.ins.userId!.isNotEmpty) {
+        userId = UserData.ins.userId;
+        debugPrint('Found user in UserData: $userId');
+      }
+
+      if (userId == null || userId.isEmpty) {
+        debugPrint('No user logged in, skipping device token registration');
+        return;
+      }
+
+      debugPrint('Attempting to register device token for user: $userId');
+
+      final messaging = FirebaseMessaging.instance;
+      final token = await messaging.getToken();
+
+      if (token != null && token.isNotEmpty) {
+        final repo = ref.read(notificationRepositoryProvider);
+        await repo.registerDeviceToken(userId, token);
+        AppLocal.ins.setUserData(Hivekey.deviceToken, token);
+        _deviceTokenRegistered = true;
+
+        debugPrint('✅ Device token registered successfully for user: $userId');
+      } else {
+        debugPrint('⚠️ No Firebase token available to register');
+      }
+
+      messaging.onTokenRefresh.listen((newToken) async {
+        if (userId != null && newToken.isNotEmpty) {
+          final repo = ref.read(notificationRepositoryProvider);
+          await repo.registerDeviceToken(userId, newToken);
+          debugPrint('🔄 Device token refreshed for user: $userId');
+
+          AppLocal.ins.setUserData(Hivekey.deviceToken, newToken);
+        }
+      });
+
+    } catch (e, stack) {
+      debugPrint('❌ Error registering device token in SplashScreen: $e\n$stack');
+      FirebaseCrashlytics.instance.recordError(e, stack, fatal: false);
     }
   }
 }

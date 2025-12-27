@@ -19,6 +19,7 @@ class NotificationRepository {
           "fcmToken": token,
         },
       );
+      print(response);
     } catch (e) {
       debugPrint("❌ Error sending FCM token: $e");
     }

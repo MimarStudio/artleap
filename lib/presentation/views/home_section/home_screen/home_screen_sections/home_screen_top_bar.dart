@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class HomeScreenTopBar extends ConsumerWidget {
@@ -13,19 +15,15 @@ class HomeScreenTopBar extends ConsumerWidget {
     ref.watch(currentSubscriptionProvider(UserData.ins.userId!));
     final profileAsync = ref.watch(userProfileProvider);
 
-    // ---------------- SAFE DEFAULTS ----------------
     UserSubscriptionModel? userSubscription;
     bool isFreePlan = true;
     String planName = 'Free';
     int totalCredits = 0;
 
-    // ---------------- SUBSCRIPTION ----------------
     subscriptionAsync.when(
       data: (sub) {
         userSubscription = sub;
-        isFreePlan = sub == null ||
-            sub.planSnapshot?.type == 'free' ||
-            sub.cancelledAt != null;
+        isFreePlan =  sub?.planSnapshot?.type == 'free' && sub?.cancelledAt != null;
       },
       loading: () {
         isFreePlan = true;
@@ -35,7 +33,6 @@ class HomeScreenTopBar extends ConsumerWidget {
       },
     );
 
-    // ---------------- PROFILE ----------------
     profileAsync.when(
       data: (state) {
         planName = state.userProfile?.user.planName ?? 'Free';
@@ -58,7 +55,6 @@ class HomeScreenTopBar extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  // ---------------- MENU BUTTON (UNCHANGED) ----------------
                   GestureDetector(
                     onTap: onMenuTap,
                     child: Container(
@@ -110,8 +106,6 @@ class HomeScreenTopBar extends ConsumerWidget {
                     ),
                   ),
                   SizedBox(width: screenWidth * 0.025),
-
-                  // ---------------- CREDITS BUTTON (UNCHANGED) ----------------
                   InkWell(
                     onTap: () {
                       if (!isFreePlan) {
@@ -156,14 +150,7 @@ class HomeScreenTopBar extends ConsumerWidget {
                     ),
                   ),
                 ],
-              ),
-
-              // ---------------- RIGHT SIDE (UNCHANGED) ----------------
-              isFreePlan
-                  ? _buildProfessionalProButton(
-                  screenWidth, context, theme)
-                  : _buildPlanBadge(
-                  planName, screenWidth, theme),
+              ), isFreePlan ? _buildProfessionalProButton(screenWidth, context, theme) : _buildPlanBadge(planName, screenWidth, theme),
             ],
           ),
         ),
@@ -172,7 +159,6 @@ class HomeScreenTopBar extends ConsumerWidget {
     );
   }
 
-  // ======================= UI HELPERS (UNCHANGED) =======================
 
   Widget _buildProfessionalProButton(
       double screenWidth, BuildContext context, ThemeData theme) {

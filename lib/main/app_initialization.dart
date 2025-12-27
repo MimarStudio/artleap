@@ -77,6 +77,10 @@ class AppInitialization {
     final token = await ref.read(authprovider).ensureValidFirebaseToken();
 
     await ref.read(firebaseNotificationServiceProvider).initialize();
+
+    // Register device token on app startup if user is logged in
+    await registerDeviceTokenOnStartup(ref);
+
     final userId = UserData.ins.userId;
     if (userId != null) {
       ref.read(notificationProvider(userId).notifier).loadNotifications();
@@ -85,6 +89,38 @@ class AppInitialization {
     return token;
   }
 
+  // NEW: Register device token on app startup
+  static Future<void> registerDeviceTokenOnStartup(WidgetRef ref) async {
+    try {
+      final userId = UserData.ins.userId;
+      if (userId == null || userId.isEmpty) {
+        debugPrint('No user ID found, skipping device token registration');
+        return;
+      }
+
+      final messaging = FirebaseMessaging.instance;
+      final token = await messaging.getToken();
+
+      if (token != null) {
+        final repo = ref.read(notificationRepositoryProvider);
+        await repo.registerDeviceToken(userId, token);
+        debugPrint('Device token registered on startup for user: $userId');
+      }
+
+      // Listen for token refresh
+      messaging.onTokenRefresh.listen((newToken) async {
+        if (UserData.ins.userId != null) {
+          final repo = ref.read(notificationRepositoryProvider);
+          await repo.registerDeviceToken(UserData.ins.userId!, newToken);
+          debugPrint('Device token refreshed for user: ${UserData.ins.userId}');
+        }
+      });
+    } catch (e, stack) {
+      debugPrint('Error registering device token on startup: $e\n$stack');
+    }
+  }
+
+  // Existing method - keep for backward compatibility
   static Future<void> registerUserDeviceToken(Ref ref) async {
     try {
       final userId = UserData.ins.userId;

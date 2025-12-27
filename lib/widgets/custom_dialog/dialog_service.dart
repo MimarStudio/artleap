@@ -70,6 +70,7 @@ class DialogService {
     required BuildContext context,
     required String message,
     String title = 'Success!',
+    VoidCallback? onConfirm,
   }) {
     showAppDialog(
       context: context,
@@ -79,6 +80,7 @@ class DialogService {
       confirmText: 'OK',
       icon: Icons.check_circle,
       iconColor: Colors.green,
+      onConfirm: onConfirm,
     );
   }
 

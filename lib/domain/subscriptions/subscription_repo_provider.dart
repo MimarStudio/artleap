@@ -9,20 +9,23 @@ import '../payment/payment_service.dart';
 
 final baseProvider = Provider<Base>((ref) => Base());
 
-final subscriptionRepoProvider = Provider<SubscriptionRepoImpl>((ref) => SubscriptionRepoImpl());
+final subscriptionRepoProvider =
+    Provider<SubscriptionRepoImpl>((ref) => SubscriptionRepoImpl());
 
 final subscriptionServiceProvider = Provider<SubscriptionService>((ref) {
   final repo = ref.read(subscriptionRepoProvider);
   return SubscriptionService(repo);
 });
 
-final paymentServiceProvider = Provider.family<PaymentService, String>((ref, userId) {
+final paymentServiceProvider =
+    Provider.family<PaymentService, String>((ref, userId) {
   final subscriptionService = ref.read(subscriptionServiceProvider);
   final base = ref.read(baseProvider);
   return PaymentService(subscriptionService, base, userId);
 });
 
-final subscriptionPlansProvider = FutureProvider<List<SubscriptionPlanModel>>((ref) async {
+final subscriptionPlansProvider =
+    FutureProvider<List<SubscriptionPlanModel>>((ref) async {
   final service = ref.read(subscriptionServiceProvider);
   final response = await service.getSubscriptionPlans();
   if (response.status == Status.completed && response.data != null) {
@@ -31,7 +34,8 @@ final subscriptionPlansProvider = FutureProvider<List<SubscriptionPlanModel>>((r
   throw Exception(response.message ?? 'Failed to fetch subscription plans');
 });
 
-final currentSubscriptionProvider = FutureProvider.family<UserSubscriptionModel?, String>((ref, userId) async {
+final currentSubscriptionProvider =
+    FutureProvider.family<UserSubscriptionModel?, String>((ref, userId) async {
   final service = ref.read(subscriptionServiceProvider);
   final response = await service.getCurrentSubscription(userId);
   if (response.status == Status.completed) {
@@ -41,12 +45,35 @@ final currentSubscriptionProvider = FutureProvider.family<UserSubscriptionModel?
   return null;
 });
 
-final generationLimitsProvider = FutureProvider.family<GenerationLimitsModel, Map<String, String>>((ref, params) async {
+final generationLimitsProvider =
+    FutureProvider.family<GenerationLimitsModel, Map<String, String>>(
+        (ref, params) async {
   final service = ref.read(subscriptionServiceProvider);
-  final response = await service.checkGenerationLimits(params['userId']!, params['generationType']!);
+  final response = await service.checkGenerationLimits(
+      params['userId']!, params['generationType']!);
   if (response.status == Status.completed && response.data != null) {
     ref.read(watermarkProvider.notifier).initializeWatermarkState();
     return response.data as GenerationLimitsModel;
   }
   throw Exception(response.message ?? 'Failed to fetch generation limits');
 });
+
+final cancelSubscriptionProvider =
+    FutureProvider.family<ApiResponse, CancelSubscriptionParams>(
+        (ref, params) async {
+  final service = ref.read(subscriptionServiceProvider);
+  return await service.cancelSubscription(
+    params.userId,
+    params.immediate,
+  );
+});
+
+class CancelSubscriptionParams {
+  final String userId;
+  final bool immediate;
+
+  CancelSubscriptionParams({
+    required this.userId,
+    required this.immediate,
+  });
+}

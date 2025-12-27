@@ -11,7 +11,6 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
   @override
   void initState() {
     super.initState();
-    // Load ad ONCE
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(bannerAdStateProvider.notifier).initializeBannerAd();
     });
@@ -32,14 +31,16 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
       child: SizedBox(
         width: bannerAd.size.width.toDouble(),
         height: bannerAd.size.height.toDouble(),
-        child: AdWidget(ad: bannerAd),
+        child: AdWidget(
+          key: ValueKey(bannerAd),
+          ad: bannerAd,
+        ),
       ),
     );
   }
 
   @override
   void dispose() {
-    // Provider will dispose the ad
     super.dispose();
   }
 }

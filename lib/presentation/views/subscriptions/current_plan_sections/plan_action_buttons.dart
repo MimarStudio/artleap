@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/domain/api_services/api_response.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class ActionButtons extends StatelessWidget {
@@ -25,16 +26,50 @@ class ActionButtons extends StatelessWidget {
       context: context,
       type: DialogType.confirmDelete,
       title: 'Cancel Subscription?',
-      message: 'We\'re sorry to see you go. Your subscription will remain active until the end of your billing period.',
+      message:
+      'We\'re sorry to see you go. If you cancel Your Subscription you will lose all your credits ',
       confirmText: 'Cancel Plan',
-      cancelText: 'Keep Subscription',
+      cancelText: 'Keep Plan',
       icon: Icons.warning_rounded,
-      onConfirm: () => _showCancellationSuccess(context),
+      onConfirm: () async {
+        final userId = subscription?.userId;
+        if (userId == null) return;
+
+        try {
+          final response = await ref.read(
+            cancelSubscriptionProvider(
+              CancelSubscriptionParams(
+                userId: userId,
+                immediate: true,
+              ),
+            ).future,
+          );
+
+          if (response.status == Status.completed) {
+            ref.invalidate(currentSubscriptionProvider(userId));
+
+            DialogService.showSuccess(
+              context: context,
+              title: 'Subscription Cancelled',
+              message: 'Your subscription has been successfully cancelled.',
+              onConfirm: () {
+                  Navigator.pushReplacementNamed(context,BottomNavBar.routeName);
+              },
+            );
+          }
+          else {
+            appErrorSnackBar('Error', response.message ?? 'Failed to cancel subscription');
+          }
+        } catch (e) {
+          appErrorSnackBar('Error', e.toString());
+        }
+      },
       extraData: {
         'planName': subscription?.planSnapshot?.name ?? 'Unknown Plan',
       },
     );
   }
+
 
   void _showPlatformCancelGuide(String paymentMethod,BuildContext context) {
     final (title, message) = _getPlatformCancelConfig(paymentMethod);
@@ -45,7 +80,7 @@ class ActionButtons extends StatelessWidget {
       title: title,
       message: message,
       confirmText: 'Got It',
-      cancelText: '',
+      cancelText: 'Cancel',
       icon: Icons.payment,
     );
   }
@@ -79,14 +114,6 @@ class ActionButtons extends StatelessWidget {
             'where you originally purchased the subscription to cancel.'
         );
     }
-  }
-
-  void _showCancellationSuccess(BuildContext context) {
-    DialogService.showSuccess(
-      context: context,
-      title: 'Subscription Cancelled',
-      message: 'Your subscription has been successfully cancelled.',
-    );
   }
 
   bool get _shouldShowCancelButton {
