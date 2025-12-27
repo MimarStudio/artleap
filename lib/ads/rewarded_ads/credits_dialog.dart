@@ -428,6 +428,7 @@ class CreditsDialog extends ConsumerWidget {
   }
 }
 
+// Enhanced showCreditsDialog function with WidgetsBinding to prevent _debugLocked error
 void showCreditsDialog({
   required BuildContext context,
   required WidgetRef ref,
@@ -438,16 +439,131 @@ void showCreditsDialog({
   required bool adDialogShown,
   required Function(bool) onDialogShownChanged,
 }) {
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => CreditsDialog(
+  // First, check if the context is still valid
+  if (!context.mounted) {
+    debugPrint('Context is not mounted, skipping dialog');
+    return;
+  }
+
+  // Use WidgetsBinding to ensure we're not in the middle of a build
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Double-check if context is still valid
+    if (!context.mounted) {
+      debugPrint('Context is not mounted in post-frame callback');
+      return;
+    }
+
+    // Check if a dialog is already showing on this context
+    final modalRoute = ModalRoute.of(context);
+    if (modalRoute?.isCurrent != true) {
+      // If not current, wait a bit and try again
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (context.mounted && ModalRoute.of(context)?.isCurrent == true) {
+          _showDialogSafely(
+            context: context,
+            ref: ref,
+            isFreePlan: isFreePlan,
+            onWatchAd: onWatchAd,
+            onUpgrade: onUpgrade,
+            onLater: onLater,
+            adDialogShown: adDialogShown,
+            onDialogShownChanged: onDialogShownChanged,
+          );
+        }
+      });
+      return;
+    }
+
+    _showDialogSafely(
+      context: context,
+      ref: ref,
       isFreePlan: isFreePlan,
       onWatchAd: onWatchAd,
       onUpgrade: onUpgrade,
       onLater: onLater,
       adDialogShown: adDialogShown,
       onDialogShownChanged: onDialogShownChanged,
-    ),
-  );
+    );
+  });
+}
+
+// Helper function to safely show the dialog
+void _showDialogSafely({
+  required BuildContext context,
+  required WidgetRef ref,
+  required bool isFreePlan,
+  required VoidCallback onWatchAd,
+  required VoidCallback onUpgrade,
+  required VoidCallback onLater,
+  required bool adDialogShown,
+  required Function(bool) onDialogShownChanged,
+}) {
+  try {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useSafeArea: true,
+      builder: (context) => CreditsDialog(
+        isFreePlan: isFreePlan,
+        onWatchAd: onWatchAd,
+        onUpgrade: onUpgrade,
+        onLater: onLater,
+        adDialogShown: adDialogShown,
+        onDialogShownChanged: onDialogShownChanged,
+      ),
+    ).then((_) {
+      // Dialog closed callback
+      onDialogShownChanged(false);
+    });
+  } catch (e) {
+    debugPrint('Error showing credits dialog: $e');
+    // Try one more time with a delay
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => CreditsDialog(
+            isFreePlan: isFreePlan,
+            onWatchAd: onWatchAd,
+            onUpgrade: onUpgrade,
+            onLater: onLater,
+            adDialogShown: adDialogShown,
+            onDialogShownChanged: onDialogShownChanged,
+          ),
+        );
+      }
+    });
+  }
+}
+
+// Helper function for when ad closes to show credits dialog safely
+void showCreditsDialogAfterAd({
+  required BuildContext context,
+  required WidgetRef ref,
+  required bool isFreePlan,
+  required VoidCallback onWatchAd,
+  required VoidCallback onUpgrade,
+  required VoidCallback onLater,
+  required Function(bool) onDialogShownChanged,
+}) {
+  // First close any existing dialog
+  if (Navigator.canPop(context)) {
+    Navigator.of(context).pop();
+  }
+
+  // Wait a moment for the ad to fully close
+  Future.delayed(const Duration(milliseconds: 100), () {
+    // Then show credits dialog using the safe method
+    showCreditsDialog(
+      context: context,
+      ref: ref,
+      isFreePlan: isFreePlan,
+      onWatchAd: onWatchAd,
+      onUpgrade: onUpgrade,
+      onLater: onLater,
+      adDialogShown: true,
+      onDialogShownChanged: onDialogShownChanged,
+    );
+  });
 }

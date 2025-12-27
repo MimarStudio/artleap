@@ -85,7 +85,7 @@ class _PromptCreateScreenRedesignState
 
   @override
   void dispose() {
-    _isMounted = false; // Set to false when disposing
+    _isMounted = false;
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _animationController.dispose();
@@ -185,7 +185,7 @@ class _PromptCreateScreenRedesignState
 
     if (isTextToImage) {
       success =
-          await ref.read(generateImageProvider.notifier).generateTextToImage();
+      await ref.read(generateImageProvider.notifier).generateTextToImage();
       if (!success) {
         success = await ref
             .read(generateImageProvider.notifier)
@@ -248,7 +248,9 @@ class _PromptCreateScreenRedesignState
       ref: ref,
       onRewardEarned: (coins) {
         if (!_isMounted) return;
-        Future.delayed(const Duration(milliseconds: 500), () {
+
+        // Use post-frame callback for snackbar
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_isMounted) return;
           AdHelper.showRewardSuccessSnackbar(context, coins);
         });
@@ -258,30 +260,59 @@ class _PromptCreateScreenRedesignState
       },
       onAdDismissed: () {
         if (!_isMounted) return;
-        try {
-          Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
-        } catch (e) {
-        }
 
-        final adNotifier = ref.read(rewardedAdNotifierProvider.notifier);
-        adNotifier.loadAd();
+        // IMPORTANT: Use WidgetsBinding to handle post-ad actions
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_isMounted) return;
+
+          try {
+            // First check if we need to pop anything
+            final canPop = Navigator.canPop(context);
+            if (canPop) {
+              // Use a microtask to ensure widget tree is stable
+              Future.microtask(() {
+                if (_isMounted) {
+                  Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+                }
+              });
+            }
+          } catch (e) {
+            debugPrint('Error in onAdDismissed: $e');
+          }
+        });
+
+        // Use another post-frame callback for loading the next ad
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_isMounted) return;
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (!_isMounted) return;
+            final adNotifier = ref.read(rewardedAdNotifierProvider.notifier);
+            adNotifier.loadAd();
+          });
+        });
+
         _adDialogShown = false;
       },
       onAdFailed: () {
         if (!_isMounted) return;
 
-        Future.delayed(const Duration(milliseconds: 500), () {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_isMounted) return;
           AdHelper.showAdErrorSnackbar(
             context,
             'Failed to show ad. Please try again.',
           );
         });
+
         _adDialogShown = false;
-        Future.delayed(const Duration(seconds: 2), () {
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_isMounted) return;
-          final adNotifier = ref.read(rewardedAdNotifierProvider.notifier);
-          adNotifier.loadAd();
+          Future.delayed(const Duration(seconds: 2), () {
+            if (!_isMounted) return;
+            final adNotifier = ref.read(rewardedAdNotifierProvider.notifier);
+            adNotifier.loadAd();
+          });
         });
       },
     );
@@ -290,18 +321,18 @@ class _PromptCreateScreenRedesignState
   @override
   Widget build(BuildContext context) {
     if (!_isMounted)
-      return const SizedBox(); // Return empty widget if not mounted
+      return const SizedBox();
 
     final theme = Theme.of(context);
     final shouldRefresh = ref.watch(refreshProvider);
     final isLoading = ref.watch(isLoadingProvider);
     final screenSize = getScreenSizeCategory(context);
     final planName = ref
-            .watch(userProfileProvider)
-            .valueOrNull
-            ?.userProfile
-            ?.user
-            .planName ??
+        .watch(userProfileProvider)
+        .valueOrNull
+        ?.userProfile
+        ?.user
+        .planName ??
         'Free';
     final isFreePlan = planName.toLowerCase() == 'free';
     final isKeyboardVisible = ref.watch(keyboardVisibleProvider);
@@ -317,11 +348,11 @@ class _PromptCreateScreenRedesignState
     }
 
     final horizontalPadding = screenSize == ScreenSizeCategory.small ||
-            screenSize == ScreenSizeCategory.extraSmall
+        screenSize == ScreenSizeCategory.extraSmall
         ? 16.0
         : 24.0;
     final topPadding = screenSize == ScreenSizeCategory.small ||
-            screenSize == ScreenSizeCategory.extraSmall
+        screenSize == ScreenSizeCategory.extraSmall
         ? 16.0
         : 24.0;
 
@@ -368,14 +399,14 @@ class _PromptCreateScreenRedesignState
                         onImageSelected: () {
                           AnalyticsService.instance.logButtonClick(
                             buttonName:
-                                'picking image from gallery button event',
+                            'picking image from gallery button event',
                           );
                         },
                         isPremiumUser: !isFreePlan,
                       ),
                       SizedBox(
                           height: screenSize == ScreenSizeCategory.small ||
-                                  screenSize == ScreenSizeCategory.extraSmall
+                              screenSize == ScreenSizeCategory.extraSmall
                               ? 100.0
                               : 120.0),
                     ],
