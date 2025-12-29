@@ -1,6 +1,5 @@
 import 'package:Artleap.ai/shared/route_export.dart';
 
-
 final interstitialAdStateProvider = StateNotifierProvider<InterstitialAdNotifier, InterstitialAdState>((ref) {
   return InterstitialAdNotifier(ref);
 });
@@ -101,9 +100,12 @@ class InterstitialAdNotifier extends StateNotifier<InterstitialAdState> {
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
         state = state.copyWith(isShowing: true);
+        ref.read(isFullscreenAdShowingProvider.notifier).state = true;
+        AppOpenAdManager.instance.disableForSession();
       },
       onAdFailedToShowFullScreenContent: (ad, err) {
         state = state.copyWith(isShowing: false, error: 'Failed to show: $err');
+        AppOpenAdManager.instance.enableForSession();
         ad.dispose();
         _interstitialAd = null;
         loadInterstitialAd();
@@ -114,6 +116,8 @@ class InterstitialAdNotifier extends StateNotifier<InterstitialAdState> {
           isLoaded: false,
           lastShownTime: DateTime.now(),
         );
+        ref.read(isFullscreenAdShowingProvider.notifier).state = false;
+        AppOpenAdManager.instance.enableForSession();
         ad.dispose();
         _interstitialAd = null;
         loadInterstitialAd();
@@ -162,6 +166,7 @@ class InterstitialAdNotifier extends StateNotifier<InterstitialAdState> {
       isShowing: false,
       isLoading: false,
     );
+    AppOpenAdManager.instance.enableForSession();
   }
 
   @override

@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/ads/banner_ads/banner_ad_widget.dart';
 import 'notification_card.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
@@ -33,6 +34,8 @@ class NotificationScreen extends ConsumerWidget {
           Expanded(
             child: _buildNotificationList(ref, selectionState, notificationsAsync, currentFilter, userId, theme),
           ),
+          const BannerAdWidget(),
+          SizedBox(height: 28)
         ],
       ),
     );
@@ -234,7 +237,7 @@ class NotificationScreen extends ConsumerWidget {
           color: theme.colorScheme.onPrimary,
           onRefresh: () => _loadNotifications(ref),
           child: ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 8),
             itemCount: filteredNotifications.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {

@@ -20,18 +20,77 @@ class _SeePictureScreenState extends ConsumerState<SeePictureScreen> {
     AnalyticsService.instance.logScreenView(screenName: 'see image screen');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Preload ad when screen loads
       AdHelper.preloadRewardedAd(ref);
+      ref.read(nativeAdProvider.notifier).loadSmallNativeAds();
 
       final userProfile = ref.read(userProfileProvider).value!.userProfile;
       if (userProfile != null && userProfile.user.totalCredits == 0) {
-        // Show ads dialog instead of premium upgrade dialog
         _showCreditsDialog();
       }
 
       final currentPrivacy = _privacyFromString(widget.params?.privacy ?? 'Public');
       ref.read(imagePrivacyProvider.notifier).cachePrivacy(widget.params!.imageId!, currentPrivacy);
     });
+  }
+
+  Widget _buildNativeAdWidget(
+      NativeAdState adState,
+      BuildContext context,
+      bool isDark,
+      ) {
+    if (!adState.showAds || !adState.isLoaded || adState.nativeAds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final ad = adState.nativeAds.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(
+                Icons.ads_click,
+                size: 12,
+                color: isDark ? Colors.white.withOpacity(0.5) : Colors.black.withOpacity(0.5),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Advertisement',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isDark ? Colors.white.withOpacity(0.5) : Colors.black.withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 90,
+            width: double.infinity,
+            child: AdWidget(ad: ad),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showCreditsDialog() {
@@ -98,6 +157,7 @@ class _SeePictureScreenState extends ConsumerState<SeePictureScreen> {
     final isFreePlan = planName.toLowerCase() == 'free';
     final cachedPrivacy = ref.watch(imagePrivacyForImageProvider(widget.params!.imageId ?? ''));
     final currentPrivacy = cachedPrivacy ?? _privacyFromString(widget.params!.privacy ?? 'Public');
+    final adState = ref.watch(nativeAdProvider);
 
     return Scaffold(
       backgroundColor: isDark ? Color(0xFF0A0A0A) : Color(0xFFF8F9FA),
@@ -137,6 +197,8 @@ class _SeePictureScreenState extends ConsumerState<SeePictureScreen> {
 
                     const SizedBox(height: 24),
                     _buildImageSection(theme, isDark),
+                    const SizedBox(height: 16),
+                    _buildNativeAdWidget(adState, context, isDark),
                     const SizedBox(height: 24),
                     PictureOptionsWidget(
                       imageId: widget.params!.imageId,

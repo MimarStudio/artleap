@@ -29,7 +29,7 @@ class AppConstants {
   static const String getUserNotificationsPath = "${notificationsBasePath}user/";
   static const String markAsReadPath = notificationsBasePath;
   static const String deleteNotificationPath = notificationsBasePath;
-  static const String createNotificationPath = notificationsBasePath;
+  // static const String createNotificationPath = notificationsBasePath;
   static const String markAllAsReadPath = "${notificationsBasePath}mark-all-read";
   static const String registerToken =  "${notificationsBasePath}register-token";
 

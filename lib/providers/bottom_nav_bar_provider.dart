@@ -11,9 +11,9 @@ final bottomNavBarProvider = ChangeNotifierProvider<BottomNavBarProvider>(
 
 class BottomNavBarProvider extends ChangeNotifier {
   List<Widget> widgets = [
+    CommunityScreen(),
     HomeScreen(),
     PromptScreen(),
-    CommunityScreen(),
     ReelsScreen(),
     UserProfileScreen(),
   ];

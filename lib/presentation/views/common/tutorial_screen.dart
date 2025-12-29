@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/ads/banner_ads/banner_ad_widget.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
 
@@ -22,7 +23,6 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
     _pageController = PageController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // ✅ Load SMALL native ads for TutorialScreen
       ref.read(nativeAdProvider.notifier).loadSmallNativeAds();
       ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
     });
@@ -103,7 +103,6 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
     ref.read(tutorialStateProvider.notifier).setCurrentPage(page);
   }
 
-  // Widget for SMALL native ads
   Widget _buildNativeAdWidget(
       NativeAdState adState,
       int currentPage,
@@ -133,7 +132,6 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
       ),
       child: Column(
         children: [
-          // Ad label
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -153,7 +151,6 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          // Ad widget
           SizedBox(
             height: isSmallScreen ? 90 : 100,
             width: double.infinity,
@@ -174,6 +171,7 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenHeight < 700;
+    final mediaPadding = MediaQuery.of(context).padding;
 
     if (state.isLoading) {
       return Scaffold(
@@ -188,10 +186,17 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      body: SafeArea(
+      body: Padding(
+        padding: EdgeInsets.only(
+          top: mediaPadding.top,
+          bottom: mediaPadding.bottom,
+        ),
         child: Column(
           children: [
-            // Skip button
+            Container(
+              color: theme.colorScheme.surface,
+              child: BannerAdWidget(),
+            ),
             Align(
               alignment: Alignment.topRight,
               child: Padding(
@@ -212,14 +217,11 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                 ),
               ),
             ),
-
-            // Main content
             Expanded(
               child: SingleChildScrollView(
                 physics: const ClampingScrollPhysics(),
                 child: Column(
                   children: [
-                    // Tutorial images
                     SizedBox(
                       height: screenHeight * 0.55,
                       child: PageView.builder(
@@ -272,8 +274,6 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                 ),
               ),
             ),
-
-            // Bottom section WITHOUT native ad (moved below)
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -298,7 +298,6 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Text content
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,7 +326,6 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                       ],
                     ),
 
-                    // Page indicators
                     Container(
                       margin: const EdgeInsets.symmetric(vertical: 16),
                       child: Row(
@@ -350,7 +348,6 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                       ),
                     ),
 
-                    // Navigation buttons
                     SizedBox(
                       height: isSmallScreen ? 45 : 52,
                       child: Row(

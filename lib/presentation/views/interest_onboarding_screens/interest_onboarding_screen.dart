@@ -1,5 +1,6 @@
 import 'components/onboarding_step_content.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
+import 'package:Artleap.ai/ads/banner_ads/banner_ad_widget.dart';
 
 class InterestOnboardingScreen extends ConsumerStatefulWidget {
   const InterestOnboardingScreen({super.key});
@@ -10,6 +11,73 @@ class InterestOnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Load native ads on initialization
+      ref.read(nativeAdProvider.notifier).loadSmallNativeAds();
+    });
+  }
+
+  Widget _buildNativeAdWidget(
+      NativeAdState adState,
+      int currentStep,
+      bool isSmallScreen,
+      BuildContext context,
+      ) {
+    if (!adState.showAds || !adState.isLoaded || adState.nativeAds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final index = currentStep % adState.nativeAds.length;
+    final ad = adState.nativeAds[index];
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 16 : 24,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(
+                Icons.ads_click,
+                size: 12,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Advertisement',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: isSmallScreen ? 90 : 100,
+            width: double.infinity,
+            child: AdWidget(ad: ad),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveUserInterests(WidgetRef ref, BuildContext context) async {
     final selectedOptions = ref.read(selectedOptionsProvider);
     final onboardingData = ref.read(onboardingDataProvider);
@@ -72,53 +140,56 @@ class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScr
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     final currentStep = ref.watch(interestOnboardingStepProvider);
     final onboardingData = ref.watch(onboardingDataProvider);
     final selectedOptions = ref.watch(selectedOptionsProvider);
+    final adState = ref.watch(nativeAdProvider); // Watch native ad state
 
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final mediaPadding = MediaQuery.of(context).padding;
 
     final currentStepData = onboardingData[currentStep];
     final currentSelection = selectedOptions[currentStep];
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-        leading: currentStep == 0
-            ? null
-            : IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
-          onPressed: () {
-            if (currentStep > 0) {
-              ref.read(interestOnboardingStepProvider.notifier).state--;
-            }
-          },
+      body: Padding(
+        padding: EdgeInsets.only(
+          top: mediaPadding.top,
+          bottom: mediaPadding.bottom,
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigation.pushNamedAndRemoveUntil(BottomNavBar.routeName);
-            },
-            child: Text(
-              'Skip',
-              style: AppTextstyle.interMedium(
-                fontSize: 16.0,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: SafeArea(
         child: Column(
           children: [
+            Container(
+              color: theme.colorScheme.surface,
+              child: const BannerAdWidget(),
+            ),
+            Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8.0, right: 16.0),
+                child: TextButton(
+                  onPressed: () {
+                    Navigation.pushNamedAndRemoveUntil(BottomNavBar.routeName);
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.onSurface.withOpacity(0.7),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  child: Text(
+                    'Skip',
+                    style: AppTextstyle.interMedium(
+                      fontSize: 14,
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                ),
+              ),
+            ),
             Padding(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
               child: ProgressBar(),
             ),
 
@@ -156,6 +227,7 @@ class _InterestOnboardingScreenState extends ConsumerState<InterestOnboardingScr
                 ),
               ),
             ),
+            _buildNativeAdWidget(adState, currentStep, isSmallScreen, context),
           ],
         ),
       ),

@@ -23,7 +23,7 @@ class HomeScreenTopBar extends ConsumerWidget {
     subscriptionAsync.when(
       data: (sub) {
         userSubscription = sub;
-        isFreePlan =  sub?.planSnapshot?.type == 'free' && sub?.cancelledAt != null;
+        isFreePlan =  sub?.planSnapshot?.type == 'free' ? true : false;
       },
       loading: () {
         isFreePlan = true;

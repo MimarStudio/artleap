@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:Artleap.ai/ads/rewarded_ads/rewarded_Ad_helper.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 import 'drawer_components/separator_widget.dart';
 import 'drawer_components/glass_circle_button.dart';
@@ -219,7 +220,7 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
             theme: theme,
             currentTheme: ref.watch(themeProvider),
             onThemeChanged: (ThemeMode newTheme) {
-              ref.read(themeProvider.notifier).setTheme(newTheme);
+              _handleThemeChange(newTheme, ref);
             },
           ),
         ],
@@ -304,6 +305,26 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
         Column(children: items),
       ],
     );
+  }
+
+  void _handleThemeChange(ThemeMode newTheme, WidgetRef ref) {
+    final profileProvider = ref.read(userProfileProvider);
+    final user = profileProvider.value?.userProfile?.user;
+    final isFreePlan = user?.planName.toLowerCase() == 'free';
+
+    if (isFreePlan) {
+      SimpleRewardedAdHelper.simpleRewardedAd(
+        ref: ref,
+        onAdDismissed: () {
+          ref.read(themeProvider.notifier).setTheme(newTheme);
+        },
+        onAdFailed: () {
+          ref.read(themeProvider.notifier).setTheme(newTheme);
+        },
+      );
+    } else {
+      ref.read(themeProvider.notifier).setTheme(newTheme);
+    }
   }
 
   void _navigateTo(BuildContext context, String routeName) {

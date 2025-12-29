@@ -24,8 +24,6 @@ class _ContinueButtonState extends ConsumerState<ContinueButton> {
   @override
   void initState() {
     super.initState();
-
-    /// ✅ Listen once for ad close
     _adListener = ref.listenManual<InterstitialAdState>(
       interstitialAdStateProvider,
           (previous, next) {
@@ -50,23 +48,17 @@ class _ContinueButtonState extends ConsumerState<ContinueButton> {
       widget.onPressed();
       return;
     }
-
     final adState = ref.read(interstitialAdStateProvider);
-
-    /// ✅ If ad is loaded → show it
     if (adState.isLoaded) {
       _waitingForAdClose = true;
       final didShow = await ref
           .read(interstitialAdStateProvider.notifier)
           .showInterstitialAd();
-
-      /// Safety fallback
       if (!didShow) {
         _waitingForAdClose = false;
         widget.onPressed();
       }
     } else {
-      /// Fallback if SDK failed
       widget.onPressed();
     }
   }
@@ -91,7 +83,7 @@ class _ContinueButtonState extends ConsumerState<ContinueButton> {
           children: [
             Text(
               widget.isLastStep ? "Get Started" : "Continue",
-              style: AppTextstyle.interBold(fontSize: 16),
+              style: AppTextstyle.interBold(fontSize: 16,color: Colors.white),
             ),
             const SizedBox(width: 10),
             Icon(

@@ -2,6 +2,14 @@ import 'dart:async';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class AppOpenAdManager {
+  static AppOpenAdManager? _instance;
+  static AppOpenAdManager get instance {
+    _instance ??= AppOpenAdManager._();
+    return _instance!;
+  }
+
+  AppOpenAdManager._();
+
   AppOpenAd? _appOpenAd;
   bool _isLoading = false;
   bool _isAdLoaded = false;
@@ -90,18 +98,22 @@ class AppOpenAdManager {
     if (_appOpenAd == null) return;
 
     _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdShowedFullScreenContent: (AppOpenAd ad) {},
+      onAdShowedFullScreenContent: (AppOpenAd ad) {
+        ref.read(isFullscreenAdShowingProvider.notifier).state = true;
+      },
       onAdImpression: (AppOpenAd ad) {},
       onAdFailedToShowFullScreenContent: (AppOpenAd ad, AdError error) {
         _appOpenAd = null;
         _isAdLoaded = false;
         loadAppOpenAd(ref);
+        ref.read(isFullscreenAdShowingProvider.notifier).state = false;
       },
       onAdDismissedFullScreenContent: (AppOpenAd ad) {
         _appOpenAd = null;
         _isAdLoaded = false;
         _lastShownTime = DateTime.now();
         loadAppOpenAd(ref);
+        ref.read(isFullscreenAdShowingProvider.notifier).state = false;
       },
       onAdClicked: (AppOpenAd ad) {},
       onAdWillDismissFullScreenContent: (AppOpenAd ad) {},

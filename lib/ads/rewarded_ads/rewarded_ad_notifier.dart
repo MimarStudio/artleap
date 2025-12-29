@@ -168,6 +168,7 @@ class RewardedAdNotifier extends StateNotifier<RewardedAdState> {
     required void Function(int coins) onRewardEarned,
     void Function()? onAdDismissed,
     void Function()? onAdFailedToShow,
+    bool isSimpleAd = false,
   }) async {
     if (_isDisposed) {
       return false;
@@ -196,6 +197,12 @@ class RewardedAdNotifier extends StateNotifier<RewardedAdState> {
           final userId = UserData.ins.userId;
 
           if (userId == null) {
+            _isProcessingReward = false;
+            return;
+          }
+
+          if(isSimpleAd){
+            _refreshUserProfile();
             _isProcessingReward = false;
             return;
           }

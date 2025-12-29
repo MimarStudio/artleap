@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/ads/rewarded_ads/rewarded_Ad_helper.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class PictureOptionsWidget extends ConsumerWidget {
@@ -101,13 +102,41 @@ class PictureOptionsWidget extends ConsumerWidget {
                     color: Colors.green,
                     context: context,
                     isLoading: ref.watch(favProvider).isDownloading == true,
-                    onTap: () {
-                      uint8ListImage != null
-                          ? ref.read(favProvider).downloadImage(imageUrl!,
-                              uint8ListObject: uint8ListImage)
-                          : ref.read(favProvider).downloadImage(imageUrl!);
-                      AnalyticsService.instance
-                          .logButtonClick(buttonName: 'download button event');
+                    onTap: () async {
+                      final userProfile = ref.read(userProfileProvider).value?.userProfile;
+                      final isFreePlan = userProfile?.user.planName.toLowerCase() == 'free';
+                      final rewardDailyCount = userProfile?.user.rewardDailyCount ?? 0;
+                      if (isFreePlan && rewardDailyCount < 2) {
+                        await SimpleRewardedAdHelper.simpleRewardedAd(
+                          ref: ref,
+                          onAdDismissed: () {
+                            uint8ListImage != null
+                                ? ref.read(favProvider).downloadImage(imageUrl!,
+                                uint8ListObject: uint8ListImage)
+                                : ref.read(favProvider).downloadImage(imageUrl!);
+                            AnalyticsService.instance
+                                .logButtonClick(buttonName: 'download button event');
+                          },
+                          onRewardEarned: () {
+
+                          },
+                          onAdFailed: () {
+                            uint8ListImage != null
+                                ? ref.read(favProvider).downloadImage(imageUrl!,
+                                uint8ListObject: uint8ListImage)
+                                : ref.read(favProvider).downloadImage(imageUrl!);
+                            AnalyticsService.instance
+                                .logButtonClick(buttonName: 'download button event');
+                          },
+                        );
+                      } else {
+                        uint8ListImage != null
+                            ? ref.read(favProvider).downloadImage(imageUrl!,
+                            uint8ListObject: uint8ListImage)
+                            : ref.read(favProvider).downloadImage(imageUrl!);
+                        AnalyticsService.instance
+                            .logButtonClick(buttonName: 'download button event');
+                      }
                     },
                   ),
                   _buildActionButton(

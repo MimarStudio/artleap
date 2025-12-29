@@ -1,6 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Add this import
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:Artleap.ai/domain/notification_model/notification_model.dart';
 import 'package:Artleap.ai/providers/notification_provider.dart';
@@ -58,7 +58,6 @@ class FirebaseNotificationService {
       provisional: false,
       sound: true,
     );
-    debugPrint('Notification permission status: ${settings.authorizationStatus}');
     await messaging.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
@@ -133,19 +132,16 @@ class FirebaseNotificationService {
         ref.read(notificationProvider(userId).notifier).addNotification(notification);
       }
 
-      final backendUserId = notification.type == AppConstants.generalNotificationType
-          ? null
-          : (messageUserId ?? userId);
+      // final backendUserId = notification.type == AppConstants.generalNotificationType ? null
+      //     : (messageUserId ?? userId);
 
-      print('Using backendUserId: $backendUserId');
-
-      await ref.read(notificationServiceProvider).createNotification(
-        title: notification.title,
-        body: notification.body,
-        type: notification.type,
-        userId: backendUserId,
-        data: notification.data,
-      );
+      // await ref.read(notificationServiceProvider).createNotification(
+      //   title: notification.title,
+      //   body: notification.body,
+      //   type: notification.type,
+      //   userId: backendUserId,
+      //   data: notification.data,
+      // );
     } catch (e) {
       debugPrint('❌ Error handling notification: $e');
     }

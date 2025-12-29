@@ -1,5 +1,6 @@
 import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
+import 'package:flutter/services.dart';
 
 class InterstitialAdManager extends ConsumerStatefulWidget {
   final Widget child;
@@ -30,11 +31,6 @@ class _InterstitialAdManagerState extends ConsumerState<InterstitialAdManager> {
     }
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   Future<bool> showInterstitialAd() async {
     final result = await ref.read(interstitialAdStateProvider.notifier).showInterstitialAd();
     if (result && widget.onAdShown != null) {
@@ -52,5 +48,10 @@ class _InterstitialAdManagerState extends ConsumerState<InterstitialAdManager> {
     });
 
     return widget.child;
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 }

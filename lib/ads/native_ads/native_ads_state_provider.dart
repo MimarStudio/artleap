@@ -158,7 +158,6 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     return false;
   }
 
-  // Initialize ad (for first load)
   Future<void> loadInitialAd() async {
     final config = RemoteConfigService.instance;
 

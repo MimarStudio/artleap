@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class FavouritesScreen extends ConsumerStatefulWidget {
@@ -10,6 +11,36 @@ class FavouritesScreen extends ConsumerStatefulWidget {
 }
 
 class _FavouritesScreenState extends ConsumerState<FavouritesScreen> {
+  bool _adShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted && !_adShown) {
+          _showInterstitialAd();
+        }
+      });
+    });
+  }
+
+  Future<void> _showInterstitialAd() async {
+    final adState = ref.read(interstitialAdStateProvider);
+
+    if (adState.isLoaded) {
+      final didShow = await ref
+          .read(interstitialAdStateProvider.notifier)
+          .showInterstitialAd();
+
+      if (didShow) {
+        _adShown = true;
+        ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

@@ -56,7 +56,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(splashStateProvider);
-
     ref.listen<SplashState>(splashStateProvider, (previous, current) {
       if (current == SplashState.readyToNavigate && !_hasNavigated) {
         _hasNavigated = true;
@@ -87,8 +86,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               fit: BoxFit.cover,
             ),
           ),
-          if (state == SplashState.noInternet ||
-              state == SplashState.firebaseError)
+          if (state == SplashState.noInternet || state == SplashState.firebaseError)
+
             Positioned(
               bottom: 50,
               left: 0,
@@ -109,9 +108,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   ElevatedButton(
                     onPressed: () {
                       _startTime = DateTime.now();
-                      ref
-                          .read(splashStateProvider.notifier)
-                          .retryInitialization();
+                      ref.read(splashStateProvider.notifier).retryInitialization();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.darkBlue,
@@ -131,7 +128,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _navigateToNextScreen() async {
     try {
       final elapsedTime = DateTime.now().difference(_startTime!);
-      final remainingTime = Duration(seconds: 3) - elapsedTime;
+      final remainingTime = Duration(seconds: 2) - elapsedTime;
 
       if (remainingTime > Duration.zero) {
         await Future.delayed(remainingTime);
@@ -190,12 +187,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return;
       }
       String? userId;
-
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        userId = firebaseUser.uid;
-        debugPrint('Found Firebase user: $userId');
-      }
+      final userData = ArtleapNavigationManager.getUserDataFromStorage();
+      userId = userData['userId'];
+      debugPrint('User ID from storage: $userId');
 
       if (userId == null || userId.isEmpty) {
         userId = AppLocal.ins.getUSerData(Hivekey.userId);
