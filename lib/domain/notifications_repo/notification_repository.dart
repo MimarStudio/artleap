@@ -19,6 +19,7 @@ class NotificationRepository {
           "fcmToken": token,
         },
       );
+      print(response);
     } catch (e) {
       debugPrint("❌ Error sending FCM token: $e");
     }
@@ -72,31 +73,31 @@ class NotificationRepository {
     }
   }
 
-  Future<void> createNotification({
-    required String title,
-    required String body,
-    required String type,
-    String? userId,
-    Map<String, dynamic>? data,
-  }) async {
-    try {
-      await dioCore.dio.post(
-        AppConstants.createNotificationPath,
-        data: {
-          'title': title,
-          'body': body,
-          'type': type,
-          'userId': userId,
-          'data': data,
-        },
-        options: Options(headers: _getAuthHeader()),
-      );
-    } on DioException catch (e) {
-      throw ErrorHandler.handleDioError(e);
-    } catch (e) {
-      throw ErrorHandler.handleError(e);
-    }
-  }
+  // Future<void> createNotification({
+  //   required String title,
+  //   required String body,
+  //   required String type,
+  //   String? userId,
+  //   Map<String, dynamic>? data,
+  // }) async {
+  //   try {
+  //     await dioCore.dio.post(
+  //       AppConstants.createNotificationPath,
+  //       data: {
+  //         'title': title,
+  //         'body': body,
+  //         'type': type,
+  //         'userId': userId,
+  //         'data': data,
+  //       },
+  //       options: Options(headers: _getAuthHeader()),
+  //     );
+  //   } on DioException catch (e) {
+  //     throw ErrorHandler.handleDioError(e);
+  //   } catch (e) {
+  //     throw ErrorHandler.handleError(e);
+  //   }
+  // }
 
   List<AppNotification> _parseNotificationResponse(Response response) {
     if (response.statusCode == 200) {

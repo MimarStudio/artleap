@@ -54,6 +54,7 @@ class AuthRepoImpl extends AuthRepo {
         return result;
       }
     } on DioException catch (w) {
+      print('Google Login Failed ${w}');
       return HandlingResponse.returnException(w);
     }
   }

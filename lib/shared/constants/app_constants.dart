@@ -1,7 +1,7 @@
 class AppConstants {
   // Base URLs
-  static const String artleapBaseUrl = "http://192.168.2.1:8000/api/";
-  // static const String artleapBaseUrl = "http://43.205.54.198:8000/api/";
+  // static const String artleapBaseUrl = "http://192.168.11.198:8000/api/";
+  static const String artleapBaseUrl = "http://43.205.54.198:8000/api/";
   static const String otherBaseUrl = "https://jsonplaceholder1.typicode.com";
   static const String reqresBaseUrl = "https://reqres.in/api/";
 
@@ -29,7 +29,7 @@ class AppConstants {
   static const String getUserNotificationsPath = "${notificationsBasePath}user/";
   static const String markAsReadPath = notificationsBasePath;
   static const String deleteNotificationPath = notificationsBasePath;
-  static const String createNotificationPath = notificationsBasePath;
+  // static const String createNotificationPath = notificationsBasePath;
   static const String markAllAsReadPath = "${notificationsBasePath}mark-all-read";
   static const String registerToken =  "${notificationsBasePath}register-token";
 

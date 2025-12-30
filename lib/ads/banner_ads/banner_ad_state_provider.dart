@@ -6,33 +6,37 @@ final bannerAdStateProvider = StateNotifierProvider<BannerAdStateNotifier, Banne
 });
 
 class BannerAdState {
-  final bool isExpanded;
   final bool isLoading;
   final bool adLoaded;
   final AdSize adSize;
   final int retryCount;
+  final bool isCollapsible;
+  final bool isLoaded;
 
   BannerAdState({
-    this.isExpanded = true,
     this.isLoading = false,
     this.adLoaded = false,
     AdSize? adSize,
     this.retryCount = 0,
+    this.isCollapsible = false,
+    this.isLoaded = false,
   }) : adSize = adSize ?? AdSize.banner;
 
   BannerAdState copyWith({
-    bool? isExpanded,
     bool? isLoading,
     bool? adLoaded,
     AdSize? adSize,
     int? retryCount,
+    bool? isCollapsible,
+    bool? isLoaded,
   }) {
     return BannerAdState(
-      isExpanded: isExpanded ?? this.isExpanded,
       isLoading: isLoading ?? this.isLoading,
       adLoaded: adLoaded ?? this.adLoaded,
       adSize: adSize ?? this.adSize,
       retryCount: retryCount ?? this.retryCount,
+      isCollapsible: isCollapsible ?? this.isCollapsible,
+      isLoaded: isLoaded ?? this.isLoaded,
     );
   }
 }
@@ -45,61 +49,73 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
 
   BannerAdStateNotifier(this._ref) : super(BannerAdState());
 
-  Future<void> initializeBannerAd() async {
-    if (_isDisposed || state.isLoading || state.adLoaded) return;
+  Future<void> initializeBannerAd({bool isCollapsible = false}) async {
+    if (_isDisposed || state.isLoading || state.isLoaded) return;
 
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(
+      isLoading: true,
+      isCollapsible: isCollapsible,
+    );
 
     final showBannerAds = _ref.read(bannerAdsEnabledProvider);
     if (!showBannerAds) {
       if (!_isDisposed) {
-        state = state.copyWith(isLoading: false, adLoaded: false);
+        state = state.copyWith(isLoading: false, adLoaded: false, isLoaded: true);
       }
       return;
     }
 
-    await _calculateAdSize();
-    await _loadBannerAd();
+    await _loadCollapsibleBannerAd();
   }
 
-  Future<void> _calculateAdSize() async {
-    try {
-      final adaptiveAdSize = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(300);
-      if (adaptiveAdSize != null && !_isDisposed) {
-        state = state.copyWith(adSize: adaptiveAdSize);
-      }
-    } catch (e) {
-      if (!_isDisposed) {
-        state = state.copyWith(adSize: AdSize.banner);
-      }
-    }
-  }
-
-  Future<void> _loadBannerAd() async {
+  Future<void> _loadCollapsibleBannerAd() async {
     if (_isDisposed) return;
 
     final showBannerAds = _ref.read(bannerAdsEnabledProvider);
     if (!showBannerAds) {
       if (!_isDisposed) {
-        state = state.copyWith(isLoading: false, adLoaded: false);
+        state = state.copyWith(isLoading: false, adLoaded: false, isLoaded: true);
       }
       return;
     }
 
-    final adUnitId = _ref.read(remoteConfigProvider).bannerAdUnit;
+    // Get adaptive ad size first
+    final screenWidth = MediaQueryData.fromWindow(WidgetsBinding.instance.window).size.width.truncate();
+    final adaptiveAdSize = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(screenWidth);
+
+    if (adaptiveAdSize == null) {
+      if (!_isDisposed) {
+        state = state.copyWith(
+          isLoading: false,
+          adLoaded: false,
+          isLoaded: true,
+        );
+      }
+      return;
+    }
 
     _bannerAd?.dispose();
     _bannerAd = null;
 
+    final adUnitId = _ref.read(remoteConfigProvider).bannerAdUnit;
+
+    // Create collapsible request if enabled
+    final adRequest = state.isCollapsible
+        ? const AdRequest(extras: {"collapsible": "bottom"})
+        : const AdRequest();
+
     _bannerAd = BannerAd(
-      size: state.adSize,
+      size: adaptiveAdSize,
       adUnitId: adUnitId,
+      request: adRequest,
       listener: BannerAdListener(
         onAdLoaded: (Ad ad) {
           if (!_isDisposed) {
             state = state.copyWith(
               isLoading: false,
               adLoaded: true,
+              isLoaded: true,
+              adSize: adaptiveAdSize,
               retryCount: 0,
             );
           }
@@ -110,6 +126,7 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
             state = state.copyWith(
               isLoading: false,
               adLoaded: false,
+              isLoaded: true,
               retryCount: state.retryCount + 1,
             );
 
@@ -117,7 +134,7 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
             if (state.retryCount < 3) {
               _retryTimer = Timer(const Duration(seconds: 2), () {
                 if (!_isDisposed) {
-                  _loadBannerAd();
+                  _loadCollapsibleBannerAd();
                 }
               });
             }
@@ -127,7 +144,6 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
         onAdClosed: (Ad ad) {},
         onAdImpression: (Ad ad) {},
       ),
-      request: const AdRequest(),
     );
 
     try {
@@ -137,14 +153,9 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
         state = state.copyWith(
           isLoading: false,
           adLoaded: false,
+          isLoaded: true,
         );
       }
-    }
-  }
-
-  void toggleExpand() {
-    if (!_isDisposed) {
-      state = state.copyWith(isExpanded: !state.isExpanded);
     }
   }
 

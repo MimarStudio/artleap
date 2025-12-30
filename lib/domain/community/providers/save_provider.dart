@@ -32,26 +32,19 @@ class SaveNotifier extends StateNotifier<AsyncValue<Map<String, bool>>> {
       if (currentState.hasValue) {
         final currentSaveStatus = currentState.value ?? {};
         final currentlySaved = currentSaveStatus[imageId] ?? false;
-
-        // Optimistic update
         final newStatus = Map<String, bool>.from(currentSaveStatus);
         newStatus[imageId] = !currentlySaved;
         state = AsyncValue.data(newStatus);
 
         if (currentlySaved) {
-          // Remove from saved
           await _saveRepository.unsavePost(imageId);
         } else {
-          // Add to saved
           await _saveRepository.savePost(imageId);
         }
-
-        // Final state update
         state = AsyncValue.data(newStatus);
       }
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
-      // Revert the state on error
       await _loadSavedStatus();
     }
   }

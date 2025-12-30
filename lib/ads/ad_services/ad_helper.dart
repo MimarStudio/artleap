@@ -11,10 +11,12 @@ class AdHelper {
     required void Function(int coins) onRewardEarned,
     void Function()? onAdDismissed,
     void Function()? onAdFailed,
+    bool isSimpleAd = false,
   }) async {
     final notifier = ref.read(rewardedAdNotifierProvider.notifier);
 
     return notifier.showAd(
+      isSimpleAd: isSimpleAd,
       onRewardEarned: onRewardEarned,
       onAdDismissed: onAdDismissed,
       onAdFailedToShow: onAdFailed,
@@ -29,6 +31,7 @@ class AdHelper {
   }) async {
     return showRewardedAd(
       ref: ref,
+      isSimpleAd: true,
       onRewardEarned: (coins) {
         onRewardEarned(RewardItem(coins, 'coins'));
       },
@@ -42,9 +45,6 @@ class AdHelper {
     await rewardedNotifier.loadAd();
   }
 
-  // NEW METHODS - added for enhanced functionality
-
-  /// Preloads rewarded ad when screen opens (enhanced version)
   static Future<void> preloadRewardedAd(WidgetRef ref) async {
     try {
       final remoteConfig = ref.read(remoteConfigProvider);
@@ -63,7 +63,6 @@ class AdHelper {
     }
   }
 
-  /// Shows rewarded ad with enhanced callbacks and error handling
   static Future<bool> showEnhancedRewardedAd({
     required WidgetRef ref,
     required BuildContext context,

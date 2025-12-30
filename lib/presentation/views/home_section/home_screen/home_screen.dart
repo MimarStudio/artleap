@@ -16,8 +16,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Future.microtask(() {
       if (mounted) {
         ref.read(userProfileProvider.notifier).updateUserCredits();
+        ref.read(nativeAdProvider.notifier).loadSmallNativeAds();
       }
     });
+  }
+
+  Widget _buildNativeAdWidget(
+      NativeAdState adState,
+      BuildContext context,
+      ) {
+    if (!adState.showAds || !adState.isLoaded || adState.nativeAds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final ad = adState.nativeAds.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(
+                Icons.ads_click,
+                size: 12,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Advertisement',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 90,
+            width: double.infinity,
+            child: AdWidget(ad: ad),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -30,6 +90,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final shouldRefresh = ref.watch(refreshProvider);
     ref.watch(bottomNavBarProvider);
     final theme = Theme.of(context);
+    final adState = ref.watch(nativeAdProvider);
 
     if (shouldRefresh && UserData.ins.userId != null) {
       Future.microtask(() {
@@ -63,6 +124,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(height: 20),
                     AiFiltersGrid(),
                     const SizedBox(height: 24),
+                    _buildNativeAdWidget(adState, context),
                     const TrendingStyles(),
                     const SizedBox(height: 24),
                     const PromptTemplates(),

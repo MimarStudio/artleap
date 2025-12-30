@@ -22,7 +22,7 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
   final _adPositions = <int>{};
   final _itemKeys = <String, GlobalKey>{};
 
-  static const int _adFrequency = 7;
+  static const int _adFrequency = 4;
   static const double _scrollThreshold = 300.0;
   static const double _adLoadThreshold = 0.7;
 

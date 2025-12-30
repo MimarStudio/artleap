@@ -26,6 +26,11 @@ class PromptEnhancerProvider extends ChangeNotifier with BaseRepo {
         : _originalPrompt;
   }
 
+  void resetEnhancer() {
+    _isEnhancedMode = false;
+    _originalPrompt = '';
+  }
+
   bool get hasEnhancedPrompt => _enhancedPrompt != null;
 
   Future<void> enhancePrompt(String prompt) async {

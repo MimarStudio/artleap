@@ -7,8 +7,7 @@ class UserProfileScreen extends ConsumerStatefulWidget {
   static const String routeName = "user_profile_screen";
 
   @override
-  ConsumerState<UserProfileScreen> createState() =>
-      _UserProfileScreenState();
+  ConsumerState<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
 class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
@@ -21,7 +20,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   void initState() {
     super.initState();
 
-    /// Post-frame setup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (UserData.ins.userId != null) {
         ref
@@ -34,18 +32,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         );
       }
 
-      AnalyticsService.instance
-          .logScreenView(screenName: 'profile screen');
+      AnalyticsService.instance.logScreenView(screenName: 'profile screen');
 
-      ref
-          .read(interstitialAdStateProvider.notifier)
-          .loadInterstitialAd();
+      ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
     });
-
-    /// ✅ CORRECT Riverpod listener for initState
     _adListener = ref.listenManual<InterstitialAdState>(
       interstitialAdStateProvider,
-          (previous, next) {
+      (previous, next) {
         if (previous?.isShowing == true &&
             next.isShowing == false &&
             _isAdNavigationPending) {
@@ -55,7 +48,21 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     );
   }
 
-  /// Trigger navigation with ad
+  void _showLogoutDialog(BuildContext context) {
+    DialogService.showAppDialog(
+      context: context,
+      type: DialogType.logout,
+      title: 'Logout Account',
+      message:
+          'You\'re about to logout from your account. Are you sure you want to continue?',
+      confirmText: 'Logout',
+      onConfirm: () {
+        AppLocal.ins.clearUSerData(Hivekey.userId);
+        Navigation.pushNamedAndRemoveUntil(LoginScreen.routeName);
+      },
+    );
+  }
+
   Future<void> _handleNavigation(String routeName) async {
     if (_isAdNavigationPending) return;
 
@@ -66,13 +73,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         .read(interstitialAdStateProvider.notifier)
         .showInterstitialAd();
 
-    /// If ad failed → navigate immediately
     if (!didShowAd) {
       _executeNavigation();
     }
   }
 
-  /// Execute actual navigation
   void _executeNavigation() {
     final route = _pendingRouteName;
 
@@ -83,8 +88,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     if (route == 'saved-images-screens') {
       Navigator.of(context).pushNamed(route);
     } else if (route == NotificationScreen.routeName) {
-      Navigator.of(context)
-          .pushNamed(NotificationScreen.routeName);
+      Navigator.of(context).pushNamed(NotificationScreen.routeName);
     }
   }
 
@@ -95,7 +99,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
   @override
   void dispose() {
-    _adListener.close(); // ✅ REQUIRED
+    _adListener.close();
     _resetNavigationState();
     super.dispose();
   }
@@ -131,15 +135,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           bottom: false,
           child: CustomScrollView(
             slivers: [
-              /// Top actions
               SliverToBoxAdapter(
                 child: SizedBox(
                   height: screenHeight * 0.2,
                   child: Align(
                     alignment: Alignment.topRight,
                     child: Padding(
-                      padding:
-                      const EdgeInsets.only(top: 16, right: 16),
+                      padding: const EdgeInsets.only(top: 16, right: 16),
                       child: Consumer(
                         builder: (context, ref, _) {
                           final userId = UserData.ins.userId;
@@ -148,12 +150,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                           }
 
                           final notifications =
-                          ref.watch(notificationProvider(userId));
+                              ref.watch(notificationProvider(userId));
 
-                          final unreadCount =
-                          notifications.maybeWhen(
+                          final unreadCount = notifications.maybeWhen(
                             data: (notifs) =>
-                            notifs.where((n) => !n.isRead).length,
+                                notifs.where((n) => !n.isRead).length,
                             orElse: () => 0,
                           );
 
@@ -162,12 +163,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                             children: [
                               IconButton(
                                 icon: Icon(Icons.save,
-                                    color: theme
-                                        .colorScheme.onPrimary),
+                                    color: theme.colorScheme.onPrimary),
                                 tooltip: "Saved Images",
                                 onPressed: () {
-                                  _handleNavigation(
-                                      'saved-images-screens');
+                                  _handleNavigation('saved-images-screens');
                                 },
                               ),
                               IconButton(
@@ -177,8 +176,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                       : null,
                                   child: Icon(
                                     Icons.notifications,
-                                    color: theme
-                                        .colorScheme.onPrimary,
+                                    color: theme.colorScheme.onPrimary,
                                     size: 30,
                                   ),
                                 ),
@@ -186,6 +184,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                   _handleNavigation(
                                       NotificationScreen.routeName);
                                 },
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  FeatherIcons.logOut,
+                                  color: theme.colorScheme.onPrimary,
+                                  size: 26,
+                                ),
+                                tooltip: "Logout",
+                                onPressed: () => _showLogoutDialog(context),
                               ),
                             ],
                           );
@@ -196,7 +203,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 ),
               ),
 
-              /// Profile content
               SliverToBoxAdapter(
                 child: Container(
                   constraints: BoxConstraints(
@@ -206,8 +212,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(20)),
                     boxShadow: [
                       BoxShadow(
                         color: theme.colorScheme.shadow.withOpacity(0.1),
@@ -229,11 +235,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                         Transform.translate(
                           offset: const Offset(0, -60),
                           child: Padding(
-                            padding:
-                            const EdgeInsets.only(left: 15.0),
+                            padding: const EdgeInsets.only(left: 15.0),
                             child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _buildProfileHeader(
                                     user, theme, userPersonalData),
@@ -242,8 +246,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                           ),
                         ),
                         MyCreationsWidget(
-                          listofCreations:
-                          userPersonalData.user.images,
+                          listofCreations: userPersonalData.user.images,
                           userName: user.username ?? 'User',
                           userId: user.id,
                         ),
@@ -269,26 +272,23 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           height: 100,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border:
-            Border.all(color: theme.colorScheme.surface, width: 4),
-            image: user.profilePic != null &&
-                user.profilePic!.isNotEmpty
+            border: Border.all(color: theme.colorScheme.surface, width: 4),
+            image: user.profilePic != null && user.profilePic!.isNotEmpty
                 ? DecorationImage(
-              image: NetworkImage(user.profilePic!),
-              fit: BoxFit.cover,
-            )
+                    image: NetworkImage(user.profilePic!),
+                    fit: BoxFit.cover,
+                  )
                 : const DecorationImage(
-              image: AssetImage(AppAssets.artstyle1),
-              fit: BoxFit.cover,
-            ),
+                    image: AssetImage(AppAssets.artstyle1),
+                    fit: BoxFit.cover,
+                  ),
           ),
         ),
         const SizedBox(height: 10),
         Text(
           (user.username ?? 'User').toUpperCase(),
           style: AppTextstyle.interBold(
-              fontSize: 22,
-              color: theme.colorScheme.onSurface),
+              fontSize: 22, color: theme.colorScheme.onSurface),
         ),
         const SizedBox(height: 4),
         Text(
@@ -318,8 +318,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     );
   }
 
-  Widget _buildStatColumn(
-      String value, String label, ThemeData theme) {
+  Widget _buildStatColumn(String value, String label, ThemeData theme) {
     return Row(
       children: [
         Text(

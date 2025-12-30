@@ -48,10 +48,10 @@ class RemoteConfigService {
         'interstitial_interval_seconds': 120,
 
         // Android Ad Units
-        'android_banner_ad_unit': 'ca-app-pub-3940256099942544/6300978111',
-        'android_interstitial_ad_unit': 'ca-app-pub-3940256099942544/1033173712',
-        'android_rewarded_ad_unit': 'ca-app-pub-3940256099942544/5224354917',
-        'android_native_ad_unit': 'ca-app-pub-3940256099942544/2247696110',
+        'android_banner_ad_unit': 'ca-app-pub-9762893813732933/8062172478',
+        'android_interstitial_ad_unit': 'ca-app-pub-9762893813732933/1706315987',
+        'android_rewarded_ad_unit': 'ca-app-pub-9762893813732933/8800431270',
+        'android_native_ad_unit': 'ca-app-pub-9762893813732933/6386855079',
         'android_app_open_ad_unit': 'ca-app-pub-3940256099942544/3419835294',
 
         // Android Ad Toggles

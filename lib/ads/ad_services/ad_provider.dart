@@ -18,7 +18,7 @@ final rewardedAdProvider = Provider<RewardedAdManager>((ref) {
 });
 
 final appOpenAdProvider = Provider<AppOpenAdManager>((ref) {
-  return AppOpenAdManager();
+  return AppOpenAdManager.instance;
 });
 
 final bannerAdManagerProvider = Provider<BannerAdManager>((ref) {
@@ -64,3 +64,5 @@ final interstitialIntervalProvider = Provider<int>((ref) {
   final remoteConfig = ref.read(remoteConfigProvider);
   return remoteConfig.interstitialInterval;
 });
+
+final isFullscreenAdShowingProvider = StateProvider<bool>((ref) => false);

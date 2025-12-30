@@ -18,6 +18,68 @@ class _SavedImagesScreenState extends ConsumerState<SavedImagesScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(nativeAdProvider.notifier).loadSmallNativeAds();
+    });
+  }
+
+  Widget _buildNativeAdWidget(
+      NativeAdState adState,
+      BuildContext context,
+      ) {
+    if (!adState.showAds || !adState.isLoaded || adState.nativeAds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final ad = adState.nativeAds.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(
+                Icons.ads_click,
+                size: 12,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Advertisement',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 90,
+            width: double.infinity,
+            child: AdWidget(ad: ad),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onScroll() {
@@ -51,6 +113,7 @@ class _SavedImagesScreenState extends ConsumerState<SavedImagesScreen> {
     final theme = Theme.of(context);
     final savedStatus = ref.watch(saveProvider);
     final savedCountAsync = ref.watch(savedCountProvider);
+    final adState = ref.watch(nativeAdProvider);
 
     return Theme(
       data: theme,
@@ -82,6 +145,8 @@ class _SavedImagesScreenState extends ConsumerState<SavedImagesScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    _buildNativeAdWidget(adState, context),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),

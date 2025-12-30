@@ -34,6 +34,7 @@ class SplashStateNotifier extends StateNotifier<SplashState> {
       }
     } catch (e) {
       state = SplashState.firebaseError;
+      print(e.toString());
     }
   }
 

@@ -1,4 +1,7 @@
+import 'package:Artleap.ai/domain/notifications_repo/notification_repository.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   static const String routeName = "splash_screen";
@@ -13,8 +16,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _controller;
   bool _hasNavigated = false;
   bool _initialized = false;
+  bool _deviceTokenRegistered = false;
   DateTime? _startTime;
-
 
   @override
   void initState() {
@@ -53,7 +56,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(splashStateProvider);
-
     ref.listen<SplashState>(splashStateProvider, (previous, current) {
       if (current == SplashState.readyToNavigate && !_hasNavigated) {
         _hasNavigated = true;
@@ -84,8 +86,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               fit: BoxFit.cover,
             ),
           ),
-          if (state == SplashState.noInternet ||
-              state == SplashState.firebaseError)
+          if (state == SplashState.noInternet || state == SplashState.firebaseError)
+
             Positioned(
               bottom: 50,
               left: 0,
@@ -106,9 +108,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   ElevatedButton(
                     onPressed: () {
                       _startTime = DateTime.now();
-                      ref
-                          .read(splashStateProvider.notifier)
-                          .retryInitialization();
+                      ref.read(splashStateProvider.notifier).retryInitialization();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.darkBlue,
@@ -128,7 +128,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _navigateToNextScreen() async {
     try {
       final elapsedTime = DateTime.now().difference(_startTime!);
-      final remainingTime = Duration(seconds: 3) - elapsedTime;
+      final remainingTime = Duration(seconds: 2) - elapsedTime;
 
       if (remainingTime > Duration.zero) {
         await Future.delayed(remainingTime);
@@ -137,6 +137,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       if (!mounted) return;
 
       await ref.read(remoteConfigProvider).fetchAndActivate();
+
+      await _registerDeviceTokenIfNeeded();
 
       final showAppOpenAds = ref.read(appOpenAdsEnabledProvider);
 
@@ -168,12 +170,75 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         hasSeenTutorial: hasSeenTutorial,
       );
     } catch (e) {
+      print('SplashScreen: Error in navigation: $e');
       if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil(
           LoginScreen.routeName,
               (Route<dynamic> route) => false,
         );
       }
+    }
+  }
+
+  Future<void> _registerDeviceTokenIfNeeded() async {
+    try {
+      if (_deviceTokenRegistered) {
+        debugPrint('Device token already registered in this session');
+        return;
+      }
+      String? userId;
+      final userData = ArtleapNavigationManager.getUserDataFromStorage();
+      userId = userData['userId'];
+      debugPrint('User ID from storage: $userId');
+
+      if (userId == null || userId.isEmpty) {
+        userId = AppLocal.ins.getUSerData(Hivekey.userId);
+        if (userId != null && userId.isNotEmpty) {
+          debugPrint('Found user in local storage: $userId');
+        }
+      }
+
+      if ((userId == null || userId.isEmpty) &&
+          UserData.ins.userId != null &&
+          UserData.ins.userId!.isNotEmpty) {
+        userId = UserData.ins.userId;
+        debugPrint('Found user in UserData: $userId');
+      }
+
+      if (userId == null || userId.isEmpty) {
+        debugPrint('No user logged in, skipping device token registration');
+        return;
+      }
+
+      debugPrint('Attempting to register device token for user: $userId');
+
+      final messaging = FirebaseMessaging.instance;
+      final token = await messaging.getToken();
+
+      if (token != null && token.isNotEmpty) {
+        final repo = ref.read(notificationRepositoryProvider);
+        await repo.registerDeviceToken(userId, token);
+        AppLocal.ins.setUserData(Hivekey.deviceToken, token);
+        _deviceTokenRegistered = true;
+
+        debugPrint('✅ Device token registered successfully for user: $userId');
+      } else {
+        debugPrint('⚠️ No Firebase token available to register');
+      }
+
+      messaging.onTokenRefresh.listen((newToken) async {
+        if (userId != null && newToken.isNotEmpty) {
+          final repo = ref.read(notificationRepositoryProvider);
+          await repo.registerDeviceToken(userId, newToken);
+          debugPrint('🔄 Device token refreshed for user: $userId');
+
+          AppLocal.ins.setUserData(Hivekey.deviceToken, newToken);
+        }
+      });
+
+    } catch (e, stack) {
+      debugPrint('❌ Error registering device token in SplashScreen: $e\n$stack');
+      FirebaseCrashlytics.instance.recordError(e, stack, fatal: false);
     }
   }
 }

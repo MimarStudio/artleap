@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:Artleap.ai/providers/prompt_enhancer_provider.dart';
 import 'package:flutter/rendering.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
@@ -176,20 +177,15 @@ class _PromptCreateScreenRedesignState
       return;
     }
 
-    AnalyticsService.instance
-        .logButtonClick(buttonName: 'Generate button event');
+    AnalyticsService.instance.logButtonClick(buttonName: 'Generate button event');
     ref.read(isLoadingProvider.notifier).state = true;
     _animationController.forward();
-
     bool success = false;
 
     if (isTextToImage) {
       success =
       await ref.read(generateImageProvider.notifier).generateTextToImage();
-      if (!success) {
-        success = await ref
-            .read(generateImageProvider.notifier)
-            .generateLeonardoTxt2Image();
+      if (!success) {success = await ref.read(generateImageProvider.notifier).generateLeonardoTxt2Image();
       }
     } else {
       await ref.read(generateImageProvider.notifier).generateImgToImg();
@@ -201,6 +197,10 @@ class _PromptCreateScreenRedesignState
     _animationController.reverse();
 
     if (success && _isMounted) {
+      Future.microtask(() {
+        ref.read(generateImageProvider.notifier).clearPrompt();
+        ref.read(promptEnhancerProvider.notifier).resetEnhancer();
+      });
       Navigation.pushNamed(ResultScreenRedesign.routeName);
     } else if (_isMounted) {
       appSnackBar(
@@ -248,8 +248,6 @@ class _PromptCreateScreenRedesignState
       ref: ref,
       onRewardEarned: (coins) {
         if (!_isMounted) return;
-
-        // Use post-frame callback for snackbar
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_isMounted) return;
           AdHelper.showRewardSuccessSnackbar(context, coins);
@@ -260,16 +258,11 @@ class _PromptCreateScreenRedesignState
       },
       onAdDismissed: () {
         if (!_isMounted) return;
-
-        // IMPORTANT: Use WidgetsBinding to handle post-ad actions
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_isMounted) return;
-
           try {
-            // First check if we need to pop anything
             final canPop = Navigator.canPop(context);
             if (canPop) {
-              // Use a microtask to ensure widget tree is stable
               Future.microtask(() {
                 if (_isMounted) {
                   Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
@@ -280,8 +273,6 @@ class _PromptCreateScreenRedesignState
             debugPrint('Error in onAdDismissed: $e');
           }
         });
-
-        // Use another post-frame callback for loading the next ad
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_isMounted) return;
           Future.delayed(const Duration(milliseconds: 300), () {
@@ -295,7 +286,6 @@ class _PromptCreateScreenRedesignState
       },
       onAdFailed: () {
         if (!_isMounted) return;
-
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_isMounted) return;
           AdHelper.showAdErrorSnackbar(
@@ -303,9 +293,7 @@ class _PromptCreateScreenRedesignState
             'Failed to show ad. Please try again.',
           );
         });
-
         _adDialogShown = false;
-
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_isMounted) return;
           Future.delayed(const Duration(seconds: 2), () {
@@ -327,13 +315,7 @@ class _PromptCreateScreenRedesignState
     final shouldRefresh = ref.watch(refreshProvider);
     final isLoading = ref.watch(isLoadingProvider);
     final screenSize = getScreenSizeCategory(context);
-    final planName = ref
-        .watch(userProfileProvider)
-        .valueOrNull
-        ?.userProfile
-        ?.user
-        .planName ??
-        'Free';
+    final planName = ref.watch(userProfileProvider).valueOrNull?.userProfile?.user.planName ?? 'Free';
     final isFreePlan = planName.toLowerCase() == 'free';
     final isKeyboardVisible = ref.watch(keyboardVisibleProvider);
 

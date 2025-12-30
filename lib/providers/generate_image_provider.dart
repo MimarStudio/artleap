@@ -72,6 +72,11 @@ class GenerateImageProvider extends ChangeNotifier with BaseRepo {
     notifyListeners();
   }
 
+  void clearPrompt() {
+    promptTextController.clear();
+    _containsSexualWords = false;
+  }
+
   set selectedStyle(String? value) {
     _selectedStyle = value;
     notifyListeners();

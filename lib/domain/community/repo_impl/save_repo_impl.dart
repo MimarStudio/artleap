@@ -24,6 +24,7 @@ class SaveRepoImpl extends SaveRepo {
       };
 
       Response res = await artleapApiService.get(AppApiPaths.getUserSavedImages, queryParameters: queryParams);
+
       ApiResponse result = HandlingResponse.returnResponse(res);
 
       if (result.status == Status.completed) {
@@ -34,6 +35,7 @@ class SaveRepoImpl extends SaveRepo {
         return result;
       }
     } on DioException catch (e) {
+      print(e.message);
       return HandlingResponse.returnException(e);
     }
   }
@@ -43,6 +45,7 @@ class SaveRepoImpl extends SaveRepo {
       final path = AppApiPaths.saveImage.replaceFirst(':imageId', imageId);
 
       Response res = await artleapApiService.postJson(path, {});
+      print(res);
       ApiResponse result = HandlingResponse.returnResponse(res);
 
       if (result.status == Status.completed) {
@@ -53,6 +56,7 @@ class SaveRepoImpl extends SaveRepo {
         return result;
       }
     } on DioException catch (e) {
+      print(e.message);
       return HandlingResponse.returnException(e);
     }
   }

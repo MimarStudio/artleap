@@ -1,45 +1,74 @@
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class BannerAdWidget extends ConsumerStatefulWidget {
-  const BannerAdWidget({super.key});
+  final bool isCollapsible;
+  final bool useAdaptiveSize;
+
+  const BannerAdWidget({
+    super.key,
+    this.isCollapsible = false,
+    this.useAdaptiveSize = true,
+  });
 
   @override
   ConsumerState<BannerAdWidget> createState() => _BannerAdWidgetState();
 }
 
 class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
+  final BannerAdManager _adManager = BannerAdManager();
+
   @override
   void initState() {
     super.initState();
-    // Load ad ONCE
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(bannerAdStateProvider.notifier).initializeBannerAd();
+      _loadBannerAd();
     });
+  }
+
+  Future<void> _loadBannerAd() async {
+    if (widget.useAdaptiveSize && widget.isCollapsible) {
+      await _adManager.loadAdaptiveCollapsibleBanner(
+        ref: ref,
+        context: context,
+        onAdFailedToLoad: (error) {
+          debugPrint('Failed to load collapsible banner ad: $error');
+        },
+      );
+    } else if (widget.isCollapsible) {
+      await _adManager.loadBannerAd(
+        ref: ref,
+        adSize: AdSize.banner,
+        onAdFailedToLoad: (error) {
+          debugPrint('Failed to load banner ad: $error');
+        },
+        isCollapsible: true,
+      );
+    } else {
+      await _adManager.loadBannerAd(
+        ref: ref,
+        adSize: AdSize.banner,
+        onAdFailedToLoad: (error) {
+          debugPrint('Failed to load banner ad: $error');
+        },
+        isCollapsible: false,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(bannerAdStateProvider);
-    final notifier = ref.read(bannerAdStateProvider.notifier);
-    final bannerAd = notifier.bannerAd;
+    final showBannerAds = ref.watch(bannerAdsEnabledProvider);
 
-    if (bannerAd == null || !state.adLoaded) {
+    if (!showBannerAds) {
       return const SizedBox.shrink();
     }
 
-    return SafeArea(
-      top: false,
-      child: SizedBox(
-        width: bannerAd.size.width.toDouble(),
-        height: bannerAd.size.height.toDouble(),
-        child: AdWidget(ad: bannerAd),
-      ),
-    );
+    return _adManager.getBannerWidget(ref);
   }
 
   @override
   void dispose() {
-    // Provider will dispose the ad
+    _adManager.dispose();
     super.dispose();
   }
 }

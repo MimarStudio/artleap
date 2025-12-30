@@ -56,9 +56,7 @@ class OptionCard extends StatelessWidget {
                   title,
                   style: AppTextstyle.interMedium(
                     fontSize: 16.0,
-                    color: isSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ),

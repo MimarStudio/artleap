@@ -75,32 +75,32 @@ class NotificationService {
     }
   }
 
-  Future<void> createNotification({
-    required String title,
-    required String body,
-    required String type,
-    String? userId,
-    Map<String, dynamic>? data,
-  }) async {
-    try {
-      if (title.isEmpty || body.isEmpty || type.isEmpty) {
-        throw ArgumentError('Title, body and type cannot be empty');
-      }
-      await _repository.createNotification(
-        title: title,
-        body: body,
-        type: type,
-        userId: userId,
-        data: data ?? {},
-      );
-    } on DioException catch (e) {
-      final error = ErrorHandler.handleDioError(e);
-      debugPrint('Notification Error: $error');
-    } catch (e) {
-      final error = ErrorHandler.handleError(e);
-      debugPrint('Notification Error: $error');
-    }
-  }
+  // Future<void> createNotification({
+  //   required String title,
+  //   required String body,
+  //   required String type,
+  //   String? userId,
+  //   Map<String, dynamic>? data,
+  // }) async {
+  //   try {
+  //     if (title.isEmpty || body.isEmpty || type.isEmpty) {
+  //       throw ArgumentError('Title, body and type cannot be empty');
+  //     }
+  //     await _repository.createNotification(
+  //       title: title,
+  //       body: body,
+  //       type: type,
+  //       userId: userId,
+  //       data: data ?? {},
+  //     );
+  //   } on DioException catch (e) {
+  //     final error = ErrorHandler.handleDioError(e);
+  //     debugPrint('Notification Error: $error');
+  //   } catch (e) {
+  //     final error = ErrorHandler.handleError(e);
+  //     debugPrint('Notification Error: $error');
+  //   }
+  // }
 
   // void _navigateToMessage(String routeName, {Object? arguments}) {
   //   try {

@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:Artleap.ai/ads/banner_ads/banner_ad_widget.dart';
-import 'package:Artleap.ai/providers/bottom_nav_bar_provider.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
+import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
 
 class BottomNavBar extends ConsumerStatefulWidget {
   static const String routeName = "bottom_nav_bar_screen";
@@ -58,6 +58,8 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
         return;
       }
       await ref.read(userProfileProvider.notifier).getUserProfileData(userId);
+
+      ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
     });
   }
 
@@ -67,11 +69,37 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
     super.dispose();
   }
 
-  void _onItemTapped(int index) {
+  Future<void> _onItemTapped(int index) async {
     _animationController.forward().then((_) {
       _animationController.reverse();
     });
-    ref.read(bottomNavBarProvider).setPageIndex(index);
+
+    if (index == 0 || index == 4) {
+      final adState = ref.read(interstitialAdStateProvider);
+
+      if (adState.isLoaded) {
+        final didShow = await ref
+            .read(interstitialAdStateProvider.notifier)
+            .showInterstitialAd();
+
+        if (!didShow) {
+          ref.read(bottomNavBarProvider).setPageIndex(index);
+          ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+        } else {
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              ref.read(bottomNavBarProvider).setPageIndex(index);
+              ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+            }
+          });
+        }
+      } else {
+        ref.read(bottomNavBarProvider).setPageIndex(index);
+        ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+      }
+    } else {
+      ref.read(bottomNavBarProvider).setPageIndex(index);
+    }
   }
 
   @override
@@ -97,7 +125,6 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
                   ),
                 ),
               ),
-              // Spacer for the bottom section
               if (!isKeyboardOpen)
                 SizedBox(height: _getBottomSectionHeight(context)),
             ],
@@ -166,16 +193,16 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             _buildSideNavigationItem(
-                              icon: FeatherIcons.home,
-                              label: 'Home',
+                              icon: FeatherIcons.users,
+                              label: 'Community',
                               index: 0,
                               currentIndex: currentIndex,
                               theme: theme,
                               isLeft: true,
                             ),
                             _buildSideNavigationItem(
-                              icon: FeatherIcons.edit3,
-                              label: 'Create',
+                              icon: FeatherIcons.compass,
+                              label: 'Explore',
                               index: 1,
                               currentIndex: currentIndex,
                               theme: theme,
@@ -185,8 +212,8 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
                         ),
                       ),
                       _buildCenterNavigationItem(
-                        icon: FeatherIcons.users,
-                        label: 'Community',
+                        icon: FeatherIcons.edit3,
+                        label: 'Create',
                         index: 2,
                         currentIndex: currentIndex,
                         theme: theme,
@@ -196,7 +223,7 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             _buildSideNavigationItem(
-                              icon: FeatherIcons.video,
+                              icon: FeatherIcons.playCircle,
                               label: 'Reels',
                               index: 3,
                               currentIndex: currentIndex,
@@ -220,11 +247,7 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
               ),
             ),
           ),
-          // Banner Ad below the navigation bar
-          Container(
-            color: theme.colorScheme.surface, // Optional: Add background color if needed
-            child: const BannerAdWidget(),
-          ),
+          const BannerAdWidget(isCollapsible: true,),
         ],
       ),
     );
