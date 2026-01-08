@@ -117,13 +117,26 @@ class _PostHeaderState extends ConsumerState<PostHeader> {
     final downloadUrl = _filteredImageUrl;
     final downloadUint8List = widget.uint8ListImage;
     ref.read(favProvider).downloadImage(downloadUrl!, uint8ListObject: downloadUint8List);
+    AnalyticsService.instance.logButtonClick(buttonName: 'Download button(Community Post Page)');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+        eventName: 'download_button_clicked(Community Post Page)',
+        parameters: {
+          'screen': 'community_post_page',
+        });
     appSnackBar('Downloading', 'Downloading image...',backgroundColor: theme.colorScheme.primary);
   }
 
   void _handleShare(BuildContext context) async {
     final theme = Theme.of(context);
     final shareUrl = _filteredImageUrl;
-
+    AnalyticsService.instance.logButtonClick(buttonName: 'Share button(Community Post Page)');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+        eventName: 'share_button_clicked(Community Post Page)',
+        parameters: {
+          'screen': 'community_post_page',
+        });
     if (shareUrl != null) {
       await Share.shareUri(Uri.parse(shareUrl));
     } else {
@@ -134,7 +147,13 @@ class _PostHeaderState extends ConsumerState<PostHeader> {
   void _handleReport(BuildContext context) {
     final reportImageId = _filteredImageId;
     final reportCreatorId = _filteredOtherUserId;
-
+    AnalyticsService.instance.logButtonClick(buttonName: 'Report button(Community Post Page)');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+        eventName: 'report_button_clicked(Community Post Page)',
+        parameters: {
+          'screen': 'community_post_page',
+        });
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -171,6 +190,13 @@ class _PostHeaderState extends ConsumerState<PostHeader> {
           InkWell(
             onTap: _filteredOtherUserId != null
                 ? () {
+              AnalyticsService.instance.logButtonClick(buttonName: 'Other User Profile(Community Post Page)');
+              final analyticsService = ref.read(analyticsServiceProvider);
+              analyticsService.logCustomEvent(
+                  eventName: 'User_profile_clicked(Community Post Page)',
+                  parameters: {
+                    'screen': 'community_post_page',
+                  });
               Navigation.pushNamed(
                 OtherUserProfileScreen.routeName,
                 arguments: OtherUserProfileParams(

@@ -1,6 +1,4 @@
-import 'package:Artleap.ai/ads/banner_ads/banner_ad_widget.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
-import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
 
 class TutorialScreen extends ConsumerStatefulWidget {
   static const String routeName = "tutorial_screen";
@@ -13,8 +11,6 @@ class TutorialScreen extends ConsumerStatefulWidget {
 
 class _TutorialScreenState extends ConsumerState<TutorialScreen> {
   late PageController _pageController;
-  late ProviderSubscription<InterstitialAdState> _interstitialListener;
-
   bool _waitingForAdClose = false;
 
   @override
@@ -24,37 +20,22 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(nativeAdProvider.notifier).loadSmallNativeAds();
-      ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+      ref.read(centralAdManagementProvider.notifier).loadInterstitialAd();
     });
-
-    _interstitialListener = ref.listenManual<InterstitialAdState>(
-      interstitialAdStateProvider,
-          (previous, next) {
-        if (previous?.isShowing == true &&
-            next.isShowing == false &&
-            _waitingForAdClose) {
-          _waitingForAdClose = false;
-          _completeTutorialAndNavigate();
-        }
-      },
-    );
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _interstitialListener.close();
     super.dispose();
   }
 
   void _onGetStartedPressed() async {
-    final adState = ref.read(interstitialAdStateProvider);
-
-    if (adState.isLoaded) {
+    final centralAdNotifier = ref.read(centralAdManagementProvider.notifier);
+    if (centralAdNotifier.isAdLoaded('interstitial') &&
+        centralAdNotifier.canShowAd()) {
       _waitingForAdClose = true;
-      final didShow = await ref
-          .read(interstitialAdStateProvider.notifier)
-          .showInterstitialAd();
+      final didShow = await centralAdNotifier.showInterstitialAd();
 
       if (!didShow) {
         _waitingForAdClose = false;
@@ -67,9 +48,24 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
 
   void _onSkipPressed() async {
     final notifier = ref.read(tutorialStateProvider.notifier);
-    await notifier.skipTutorial();
-    if (mounted) {
-      _navigateToNextScreen();
+    final centralAdNotifier = ref.read(centralAdManagementProvider.notifier);
+    if (centralAdNotifier.isAdLoaded('interstitial') &&
+        centralAdNotifier.canShowAd()) {
+      _waitingForAdClose = true;
+      final didShow = await centralAdNotifier.showInterstitialAd();
+
+      if (!didShow) {
+        _waitingForAdClose = false;
+        await notifier.skipTutorial();
+        if (mounted) {
+          _navigateToNextScreen();
+        }
+      }
+    } else {
+      await notifier.skipTutorial();
+      if (mounted) {
+        _navigateToNextScreen();
+      }
     }
   }
 
@@ -87,7 +83,8 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
     final userName = userData['userName'] ?? "";
     final userProfilePicture = userData['userProfilePicture'] ?? "";
     final userEmail = userData['userEmail'] ?? "";
-    final hasSeenTutorial = await ArtleapNavigationManager.getTutorialStatus(ref);
+    final hasSeenTutorial =
+    await ArtleapNavigationManager.getTutorialStatus(ref);
     await ArtleapNavigationManager.navigateBasedOnUserStatus(
       context: context,
       ref: ref,
@@ -103,69 +100,10 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
     ref.read(tutorialStateProvider.notifier).setCurrentPage(page);
   }
 
-  Widget _buildNativeAdWidget(
-      NativeAdState adState,
-      int currentPage,
-      bool isSmallScreen,
-      BuildContext context,
-      ) {
-    if (!adState.showAds || !adState.isLoaded || adState.nativeAds.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final index = currentPage % adState.nativeAds.length;
-    final ad = adState.nativeAds[index];
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isSmallScreen ? 16 : 24,
-        vertical: 12,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Icon(
-                Icons.ads_click,
-                size: 12,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Advertisement',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: isSmallScreen ? 90 : 100,
-            width: double.infinity,
-            child: AdWidget(ad: ad),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(tutorialStateProvider);
-    final adState = ref.watch(nativeAdProvider);
     final notifier = ref.read(tutorialStateProvider.notifier);
     final currentScreen = notifier.getCurrentScreen();
     final screenHeight = MediaQuery.of(context).size.height;
@@ -195,7 +133,7 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
           children: [
             Container(
               color: theme.colorScheme.surface,
-              child: BannerAdWidget(),
+              child: BannerAdWidget(uniqueScreenKey: '/tutorial'),
             ),
             Align(
               alignment: Alignment.topRight,
@@ -204,8 +142,10 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                 child: TextButton(
                   onPressed: _onSkipPressed,
                   style: TextButton.styleFrom(
-                    foregroundColor: theme.colorScheme.onSurface.withOpacity(0.7),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    foregroundColor:
+                    theme.colorScheme.onSurface.withOpacity(0.7),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                   child: Text(
                     'Skip',
@@ -240,7 +180,8 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: theme.colorScheme.shadow.withOpacity(0.2),
+                                    color: theme.colorScheme.shadow
+                                        .withOpacity(0.2),
                                     blurRadius: 12,
                                     offset: const Offset(0, 6),
                                   ),
@@ -257,7 +198,8 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                                       color: theme.colorScheme.surfaceContainer,
                                       child: Icon(
                                         Icons.image,
-                                        color: theme.colorScheme.onSurface.withOpacity(0.3),
+                                        color: theme.colorScheme.onSurface
+                                            .withOpacity(0.3),
                                         size: 60,
                                       ),
                                     );
@@ -325,7 +267,6 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                         ),
                       ],
                     ),
-
                     Container(
                       margin: const EdgeInsets.symmetric(vertical: 16),
                       child: Row(
@@ -340,14 +281,14 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                             decoration: BoxDecoration(
                               color: state.currentPage == index
                                   ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface.withOpacity(0.3),
+                                  : theme.colorScheme.onSurface
+                                  .withOpacity(0.3),
                               borderRadius: BorderRadius.circular(3),
                             ),
                           ),
                         ),
                       ),
                     ),
-
                     SizedBox(
                       height: isSmallScreen ? 45 : 52,
                       child: Row(
@@ -395,7 +336,6 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                             )
                           else
                             SizedBox(width: screenWidth * 0.35),
-
                           SizedBox(
                             width: screenWidth * 0.35,
                             child: ElevatedButton(
@@ -406,7 +346,8 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                                 notifier.setCurrentPage(newPage);
                                 _pageController.animateToPage(
                                   newPage,
-                                  duration: const Duration(milliseconds: 300),
+                                  duration:
+                                  const Duration(milliseconds: 300),
                                   curve: Curves.easeInOut,
                                 );
                               },
@@ -421,7 +362,8 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                                   borderRadius: BorderRadius.circular(18),
                                 ),
                                 elevation: 2,
-                                shadowColor: theme.colorScheme.primary.withOpacity(0.3),
+                                shadowColor:
+                                theme.colorScheme.primary.withOpacity(0.3),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -452,9 +394,135 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                 ),
               ),
             ),
-            _buildNativeAdWidget(adState, state.currentPage, isSmallScreen, context),
+            _TutorialNativeAd(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TutorialNativeAd extends ConsumerWidget {
+  const _TutorialNativeAd();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final centralAdState = ref.watch(centralAdManagementProvider);
+    final nativeAdState = ref.watch(nativeAdProvider);
+
+    final adsList = nativeAdState.smallNativeAds;
+    final isLoading = nativeAdState.isLoadingSmall;
+    final isAdTypeLoaded = centralAdState.adLoadStatus['smallNative'] ?? false;
+
+    if (isLoading) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.all(10),
+        height: 90,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.colorScheme.outline.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+      );
+    }
+
+    if (nativeAdState.errorMessage != null && adsList.isEmpty && isAdTypeLoaded) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.all(10),
+        height: 90,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.colorScheme.error.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: theme.colorScheme.error,
+                size: 24,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Ad failed to load',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final ad = adsList.isNotEmpty ? adsList.first : null;
+    if (!nativeAdState.showAds || !isAdTypeLoaded || adsList.isEmpty || ad == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(
+                Icons.ads_click,
+                size: 12,
+                color: theme.colorScheme.onSurface.withOpacity(0.5),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Advertisement',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 90,
+            width: double.infinity,
+            child: AdWidget(ad: ad),
+          ),
+        ],
       ),
     );
   }

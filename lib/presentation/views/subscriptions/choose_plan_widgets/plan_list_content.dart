@@ -61,6 +61,13 @@ class _PlanListContentState extends ConsumerState<PlanListContent> {
                     GestureDetector(
                       onTap: () {
                         ref.read(selectedPlanProvider.notifier).state = plansToShow[i];
+                        AnalyticsService.instance.logButtonClick(buttonName: 'Plan Card Click ${plansToShow[i].name}');
+                        final analyticsService = ref.read(analyticsServiceProvider);
+                        analyticsService.logCustomEvent(
+                            eventName: 'Plan_Card_Click_${plansToShow[i].name}_(Choose Plan Screen)',
+                            parameters: {
+                              'screen': 'choose_plan_screen',
+                            });
                       },
                       child: PlanCard(
                         plan: plansToShow[i],

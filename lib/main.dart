@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:Artleap.ai/ads/ad_services/ad_wrappers.dart';
+import 'package:Artleap.ai/presentation/views/feedback/feedback_dialog.dart';
 import 'package:Artleap.ai/shared/theme/app_theme.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 import 'remote_config/force_update/force_update_wrapper.dart';
@@ -8,13 +8,13 @@ void main() {
   runZonedGuarded<Future<void>>(() async {
     WidgetsFlutterBinding.ensureInitialized();
     await AppInitialization.initialize();
-
+    await FeedbackNavigationDialogHelper.resetDialogShownState();
     runApp(
       ProviderScope(
         overrides: [
           notificationServiceProvider.overrideWith((ref) => NotificationService(ref)),
         ],
-        child: AppKeyboardListener(child: const AdAppWrapper(child: MyApp()),),
+        child: AppKeyboardListener(child: const CentralAdWrapper(child: MyApp()),),
       ),
     );
   }, (error, stack) {
@@ -52,29 +52,18 @@ class _MyAppState extends ConsumerState<MyApp> {
     _initializeApp();
   }
 
+
   Future<void> _initializeApp() async {
     final status = await AppTrackingTransparency.trackingAuthorizationStatus;
     if (status == TrackingStatus.notDetermined) {
       await AppTrackingTransparency.requestTrackingAuthorization();
     }
-
-    Future.microtask(() async {
-      final token = await AppInitialization.initializeAuthAndNotifications(ref);
-
-      if (token == null) {
-        navigatorKey.currentState?.pushNamedAndRemoveUntil(
-          SplashScreen.routeName,
-              (Route<dynamic> route) => false,
-        );
-        return;
+    await AppInitialization.initializeAuthAndNotifications(ref);
+    _refreshTokenTimer = Timer.periodic(const Duration(hours: 1), (_) async {
+      final refreshedToken = await ref.read(authprovider).ensureValidFirebaseToken();
+      if (refreshedToken == null) {
+        debugPrint('Token refresh skipped: No user signed in.');
       }
-
-      _refreshTokenTimer = Timer.periodic(const Duration(hours: 1), (_) async {
-        final refreshedToken = await ref.read(authprovider).ensureValidFirebaseToken();
-        if (refreshedToken == null) {
-          debugPrint('Token refresh skipped: No user signed in.');
-        }
-      });
     });
   }
 

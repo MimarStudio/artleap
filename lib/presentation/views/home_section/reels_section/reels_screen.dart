@@ -1,4 +1,5 @@
 import 'package:Artleap.ai/domain/reels/reel_provider.dart';
+import 'package:Artleap.ai/presentation/firebase_analyitcs_singleton/firebase_analtics_singleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'components/reel_actions_widget.dart';
@@ -15,6 +16,12 @@ class ReelsScreen extends ConsumerStatefulWidget {
 
 class _ReelsScreenState extends ConsumerState<ReelsScreen> {
   final PageController _pageController = PageController();
+
+  @override
+  void initState() {
+    AnalyticsService.instance.logScreenView(screenName: 'reels button event');
+    super.initState();
+  }
 
   @override
   void dispose() {
@@ -64,9 +71,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
     //   );
     // }
 
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      body: Stack(
+    return  Stack(
         children: [
           PageView.builder(
             controller: _pageController,
@@ -261,7 +266,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 }

@@ -7,6 +7,8 @@ class SocialLoginsWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+
+    final analyticsService = ref.read(analyticsServiceProvider);
     return Container(
       width: 285,
       child: Row(
@@ -26,6 +28,14 @@ class SocialLoginsWidget extends ConsumerWidget {
               : InkWell(
                   onTap: () {
                     ref.read(authprovider).signInWithGoogle();
+                    AnalyticsService.instance.logButtonClick(buttonName: 'google Login Button');
+
+                    analyticsService.logCustomEvent(
+                      eventName: 'google_button_clicked',
+                      parameters: {
+                        'screen': 'login_screen',
+                      },
+                    );
                   },
                   child: Container(
                     height: 45,
@@ -56,7 +66,15 @@ class SocialLoginsWidget extends ConsumerWidget {
                 style: SignInWithAppleButtonStyle.white,
                 text: "",
                 onPressed: () async {
+                  AnalyticsService.instance.logButtonClick(buttonName: 'Apple Login Button');
                   ref.read(authprovider).signInWithApple();
+
+                  analyticsService.logCustomEvent(
+                    eventName: 'apple_button_clicked',
+                    parameters: {
+                      'screen': 'login_screen',
+                    },
+                  );
                 },
               ),
             )

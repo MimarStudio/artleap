@@ -1,4 +1,3 @@
-import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class ContinueButton extends ConsumerStatefulWidget {
@@ -67,33 +66,36 @@ class _ContinueButtonState extends ConsumerState<ContinueButton> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: widget.isEnabled ? _handlePress : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: theme.colorScheme.primary,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return ElevatedButton(
+      onPressed: widget.isEnabled ? _handlePress : null,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: widget.isEnabled
+            ? theme.colorScheme.primary
+            : theme.colorScheme.primary.withOpacity(0.5),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 2,
+        shadowColor: theme.colorScheme.primary.withOpacity(0.3),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            widget.isLastStep ? "Get Started" : "Continue",
+            style: AppTextstyle.interBold(
+              fontSize: 16,
+              color: Colors.white,
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              widget.isLastStep ? "Get Started" : "Continue",
-              style: AppTextstyle.interBold(fontSize: 16,color: Colors.white),
-            ),
-            const SizedBox(width: 10),
-            Icon(
-              widget.isLastStep
-                  ? Icons.rocket_launch
-                  : Icons.arrow_forward_ios,
-              size: 16,
-            ),
-          ],
-        ),
+          const SizedBox(width: 10),
+          Icon(
+            widget.isLastStep ? Icons.rocket_launch : Icons.arrow_forward_ios,
+            size: 18,
+          ),
+        ],
       ),
     );
   }

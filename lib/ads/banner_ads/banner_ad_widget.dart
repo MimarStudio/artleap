@@ -1,13 +1,11 @@
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class BannerAdWidget extends ConsumerStatefulWidget {
-  final bool isCollapsible;
-  final bool useAdaptiveSize;
+  final String uniqueScreenKey;
 
   const BannerAdWidget({
     super.key,
-    this.isCollapsible = false,
-    this.useAdaptiveSize = true,
+    required this.uniqueScreenKey,
   });
 
   @override
@@ -15,60 +13,65 @@ class BannerAdWidget extends ConsumerStatefulWidget {
 }
 
 class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
-  final BannerAdManager _adManager = BannerAdManager();
+  BannerAd? _localBannerAd;
+  bool _isLoaded = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadBannerAd();
+      _createLocalBanner();
     });
   }
 
-  Future<void> _loadBannerAd() async {
-    if (widget.useAdaptiveSize && widget.isCollapsible) {
-      await _adManager.loadAdaptiveCollapsibleBanner(
-        ref: ref,
-        context: context,
-        onAdFailedToLoad: (error) {
-          debugPrint('Failed to load collapsible banner ad: $error');
-        },
-      );
-    } else if (widget.isCollapsible) {
-      await _adManager.loadBannerAd(
-        ref: ref,
-        adSize: AdSize.banner,
-        onAdFailedToLoad: (error) {
-          debugPrint('Failed to load banner ad: $error');
-        },
-        isCollapsible: true,
-      );
-    } else {
-      await _adManager.loadBannerAd(
-        ref: ref,
-        adSize: AdSize.banner,
-        onAdFailedToLoad: (error) {
-          debugPrint('Failed to load banner ad: $error');
-        },
-        isCollapsible: false,
-      );
-    }
-  }
+  Future<void> _createLocalBanner() async {
+    final config = ref.read(remoteConfigProvider);
+    if (!config.showBannerAds) return;
 
-  @override
-  Widget build(BuildContext context) {
-    final showBannerAds = ref.watch(bannerAdsEnabledProvider);
+    final width =
+    MediaQuery.of(context).size.width.truncate();
 
-    if (!showBannerAds) {
-      return const SizedBox.shrink();
-    }
+    final size =
+    await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(width);
 
-    return _adManager.getBannerWidget(ref);
+    if (!mounted || size == null) return;
+
+    _localBannerAd = BannerAd(
+      adUnitId: config.bannerAdUnit,
+      size: size,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          if (mounted) {
+            setState(() => _isLoaded = true);
+          }
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+        },
+      ),
+    );
+
+    await _localBannerAd!.load();
   }
 
   @override
   void dispose() {
-    _adManager.dispose();
+    _localBannerAd?.dispose();
+    _localBannerAd = null;
     super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isLoaded || _localBannerAd == null) {
+      return const SizedBox(height: 50);
+    }
+
+    return SizedBox(
+      width: _localBannerAd!.size.width.toDouble(),
+      height: _localBannerAd!.size.height.toDouble(),
+      child: AdWidget(ad: _localBannerAd!),
+    );
   }
 }

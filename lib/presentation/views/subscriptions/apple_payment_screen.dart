@@ -97,7 +97,13 @@ class _ApplePaymentScreenState extends ConsumerState<ApplePaymentScreen> {
 
   Future<void> _handleSubscription() async {
     if (ref.read(paymentLoadingProvider)) return;
-
+    AnalyticsService.instance.logButtonClick(buttonName: 'Subscription Button Click(Apple)');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+        eventName: 'subscription_button_clicked(Apple Payment Page)',
+        parameters: {
+          'screen': 'Payment_page',
+        });
     final paymentMethod = ref.read(selectedPaymentMethodProvider);
     final userId = UserData.ins.userId;
 
@@ -296,6 +302,12 @@ class _ApplePaymentScreenState extends ConsumerState<ApplePaymentScreen> {
                 title: 'App Store',
                 isSelected: selectedPaymentMethod == 'apple',
                 onTap: () {
+                  final analyticsService = ref.read(analyticsServiceProvider);
+                  analyticsService.logCustomEvent(
+                      eventName: 'apple_pay_option_selected(Apple Payment Page)',
+                      parameters: {
+                        'screen': 'Payment_page',
+                      });
                   if (_isMounted && !_isDisposing) {
                     _safeStateUpdate(() {
                       ref.read(selectedPaymentMethodProvider.notifier).state = 'apple';
@@ -309,6 +321,12 @@ class _ApplePaymentScreenState extends ConsumerState<ApplePaymentScreen> {
               title: 'Credit/Debit Card',
               isSelected: selectedPaymentMethod == 'stripe',
               onTap: () {
+                final analyticsService = ref.read(analyticsServiceProvider);
+                analyticsService.logCustomEvent(
+                    eventName: 'stripe_pay_option_selected(Apple Payment Page)',
+                    parameters: {
+                      'screen': 'Payment_page',
+                    });
                 if (_isMounted && !_isDisposing) {
                   _safeStateUpdate(() {
                     ref.read(selectedPaymentMethodProvider.notifier).state = 'stripe';

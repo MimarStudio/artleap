@@ -7,13 +7,7 @@ class RemoteConfigService {
 
   late FirebaseRemoteConfig _remoteConfig;
   bool _initialized = false;
-  bool _isFreeUser = true;
 
-  /// 🔥 CALLED when profile loads
-  // void updateUserPlan({required bool isFreeUser}) {
-  //   _isFreeUser = isFreeUser;
-  //   debugPrint('🔐 RemoteConfig: User isFreeUser=$_isFreeUser');
-  // }
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -79,22 +73,9 @@ class RemoteConfigService {
       await _remoteConfig.setDefaults(defaults);
       await _remoteConfig.fetchAndActivate();
       _initialized = true;
-
-      _logCurrentConfig();
     } catch (e) {
       print('RemoteConfig init error: $e');
     }
-  }
-
-  void _logCurrentConfig() {
-    print('=== Remote Config Status ===');
-    print('Initialized: $_initialized');
-    print('Platform: ${defaultTargetPlatform == TargetPlatform.iOS ? 'iOS' : 'Android'}');
-    print('Ads Enabled: ${_remoteConfig.getBool('ads_enabled')}');
-    print('Force Update Required: ${_remoteConfig.getBool('force_update_required')}');
-    print('Latest Version: $latestVersion');
-    print('Min Supported Version: $minSupportedVersion');
-    print('============================');
   }
 
   Future<bool> fetchAndActivate() async {
@@ -104,7 +85,6 @@ class RemoteConfigService {
       final updated = await _remoteConfig.fetchAndActivate();
       if (updated) {
         print('RemoteConfig: Fetch and activate successful - new data applied');
-        _logCurrentConfig();
       } else {
         print('RemoteConfig: No new data fetched or already activated');
       }

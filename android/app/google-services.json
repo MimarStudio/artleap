@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "53715181958-9ohi25h18h7cf4kv8rsu8ddfe56uaib6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.XrDIgital.ImaginaryVerse",
+            "certificate_hash": "67f436f0cad69df88e1c702bb539e7d6df8473b4"
+          }
+        },
+        {
           "client_id": "53715181958-qa1dm07qrolafb76hi0lhg9majrbchme.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -63,7 +71,8 @@
             }
           ]
         }
-      }
+      },
+      "admob_app_id": "ca-app-pub-9762893813732933~8813099092"
     }
   ],
   "configuration_version": "1"

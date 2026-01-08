@@ -183,7 +183,7 @@ class BaseDialog extends StatelessWidget {
             child: Text(
               confirmText,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -214,7 +214,7 @@ class BaseDialog extends StatelessWidget {
               child: Text(
                 cancelText,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onSurface,
                 ),
@@ -242,7 +242,7 @@ class BaseDialog extends StatelessWidget {
                 child: Text(
                   confirmText,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

@@ -8,6 +8,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    AnalyticsService.instance.logButtonClick(buttonName: 'Privacy Policy');
 
     return Scaffold(
       appBar: _buildAppBar(theme),

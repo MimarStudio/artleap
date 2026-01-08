@@ -3,6 +3,7 @@ import 'package:Artleap.ai/shared/theme/custom_theme_extension.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 final privacyPolicyLoadingProvider = StateProvider<bool>((ref) => false);
+final privacyPolicyAdLoadedProvider = StateProvider<bool>((ref) => false);
 
 class AcceptPrivacyPolicyScreen extends ConsumerStatefulWidget {
   const AcceptPrivacyPolicyScreen({super.key});
@@ -15,6 +16,50 @@ class AcceptPrivacyPolicyScreen extends ConsumerStatefulWidget {
 
 class _AcceptPrivacyPolicyScreenState
     extends ConsumerState<AcceptPrivacyPolicyScreen> {
+  bool _adsInitialized = false;
+  Timer? _adRetryTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _initializeAds();
+    });
+  }
+
+  Future<void> _initializeAds() async {
+    if (_adsInitialized) return;
+
+    try {
+      final centralAdNotifier = ref.read(centralAdManagementProvider.notifier);
+      centralAdNotifier.setWidgetRef(ref);
+      await Future.wait([
+        centralAdNotifier.loadBannerAd(),
+        centralAdNotifier.loadSmallNativeAds(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _adsInitialized = true;
+        });
+        ref.read(privacyPolicyAdLoadedProvider.notifier).state = true;
+      }
+
+    } catch (e) {
+      _adRetryTimer = Timer(Duration(seconds: 3), () {
+        if (mounted && !_adsInitialized) {
+          _initializeAds();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _adRetryTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _acceptPrivacyPolicy() async {
     final isLoading = ref.read(privacyPolicyLoadingProvider);
     if (isLoading) return;
@@ -42,8 +87,9 @@ class _AcceptPrivacyPolicyScreenState
         ref.read(privacyPolicyLoadingProvider.notifier).state = false;
         return;
       }
-      _navigateToInterestScreen();
+      await _showInterstitialIfAvailable();
 
+      _navigateToInterestScreen();
     } catch (e) {
       if (mounted) {
         appSnackBar(
@@ -56,11 +102,29 @@ class _AcceptPrivacyPolicyScreenState
     }
   }
 
+  Future<void> _showInterstitialIfAvailable() async {
+    try {
+      final centralAdNotifier = ref.read(centralAdManagementProvider.notifier);
+      final canShow = centralAdNotifier.canShowAd();
+      final isLoaded = centralAdNotifier.isAdLoaded('interstitial');
+
+      if (isLoaded && canShow) {
+        final didShow = await centralAdNotifier.showInterstitialAd();
+        if (didShow) {
+          await Future.delayed(Duration(seconds: 1));
+        }
+      }
+    } catch (e) {
+      print('[PRIVACY POLICY] Error showing interstitial: $e');
+    }
+  }
+
   void _navigateToInterestScreen() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(privacyPolicyLoadingProvider.notifier).state = false;
       if (mounted) {
-        ref.read(privacyPolicyLoadingProvider.notifier).state = false;
-        Navigation.pushNamedAndRemoveUntil(InterestOnboardingScreenWrapper.routeName);
+        Navigation.pushNamedAndRemoveUntil(
+            InterestOnboardingScreenWrapper.routeName);
       }
     });
   }
@@ -125,7 +189,6 @@ class _AcceptPrivacyPolicyScreenState
                   height: 1.5,
                 ),
               ),
-              const Spacer(flex: 2),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text.rich(
@@ -145,8 +208,7 @@ class _AcceptPrivacyPolicyScreenState
                         ),
                         recognizer: TapGestureRecognizer()
                           ..onTap = () {
-                            Navigator.pushNamed(
-                                context, '/privacy-policy');
+                            Navigator.pushNamed(context, '/privacy-policy');
                           },
                       ),
                       const TextSpan(
@@ -160,8 +222,7 @@ class _AcceptPrivacyPolicyScreenState
                         ),
                         recognizer: TapGestureRecognizer()
                           ..onTap = () {
-                            Navigator.pushNamed(
-                                context, '/privacy-policy');
+                            Navigator.pushNamed(context, '/privacy-policy');
                           },
                       ),
                     ],
@@ -218,6 +279,7 @@ class _AcceptPrivacyPolicyScreenState
                 ),
               ),
               const SizedBox(height: 20),
+              BannerAdWidget(uniqueScreenKey: '/privacy-policy'),
             ],
           ),
         ),

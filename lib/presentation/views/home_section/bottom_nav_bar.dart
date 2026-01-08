@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:ui';
-import 'package:Artleap.ai/ads/banner_ads/banner_ad_widget.dart';
+import 'package:Artleap.ai/ads/banner_ads/coolapsable_banner_ad_widget.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
-import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
+
+final bottomNavBarLoadingProvider = StateProvider<bool>((ref) => true);
+final bottomNavBarBannerStateProvider = StateProvider<bool>((ref) => false);
+final bottomNavBarInterstitialCounterProvider = StateProvider<int>((ref) => 0);
 
 class BottomNavBar extends ConsumerStatefulWidget {
   static const String routeName = "bottom_nav_bar_screen";
-
   const BottomNavBar({super.key});
 
   @override
@@ -13,11 +16,13 @@ class BottomNavBar extends ConsumerStatefulWidget {
 }
 
 class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerProviderStateMixin {
-  bool _initialized = false;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-
+  String? _userId;
+  Timer? _bannerRetryTimer;
+  bool _isDisposed = false;
+  late final String _nativeAdKey = UniqueKey().toString();
   @override
   void initState() {
     super.initState();
@@ -43,63 +48,164 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
       curve: Curves.easeInOut,
     ));
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (_initialized) return;
-      _initialized = true;
-
-      final userId = (AppData.instance.userId?.trim().isNotEmpty ?? false)
-          ? AppData.instance.userId!.trim()
-          : (UserData.ins.userId ?? '').trim();
-
-      if (userId.isEmpty) {
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, LoginScreen.routeName);
-        }
-        return;
-      }
-      await ref.read(userProfileProvider.notifier).getUserProfileData(userId);
-
-      ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeApp();
     });
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
+  Future<void> _initializeApp() async {
+    if (_isDisposed) return;
+
+    ref.read(bottomNavBarLoadingProvider.notifier).state = true;
+
+    _userId = (AppData.instance.userId?.trim().isNotEmpty ?? false)
+        ? AppData.instance.userId!.trim()
+        : (UserData.ins.userId ?? '').trim();
+
+    if (_userId == null || _userId!.isEmpty) {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, LoginScreen.routeName);
+      }
+      return;
+    }
+    await _ensureBannerAd();
+
+    if (!_isDisposed) {
+      ref.read(bottomNavBarLoadingProvider.notifier).state = false;
+    }
   }
 
-  Future<void> _onItemTapped(int index) async {
+  Future<void> _ensureBannerAd() async {
+    if (_isDisposed) return;
+
+    try {
+      final centralAdNotifier = ref.read(centralAdManagementProvider.notifier);
+      centralAdNotifier.setWidgetRef(ref);
+
+      final centralAdState = ref.read(centralAdManagementProvider);
+      final bannerState = ref.read(bannerAdStateProvider);
+
+      final isBannerLoaded = bannerState.isLoaded &&
+          bannerState.bannerAd != null &&
+          bannerState.adLoaded &&
+          bannerState.isCollapsible;
+
+      final isCollapsibleBannerActive = centralAdState.adLoadStatus['collapsibleBanner'] == true;
+      if (!isBannerLoaded || !isCollapsibleBannerActive) {
+        await centralAdNotifier.loadCollapsibleBannerAd();
+      }
+      _startBannerMonitoring();
+
+    } catch (e) {
+      if (!_isDisposed) {
+        _bannerRetryTimer = Timer(Duration(seconds: 3), () {
+          if (!_isDisposed && mounted) {
+            _ensureBannerAd();
+          }
+        });
+      }
+    }
+  }
+
+  void _startBannerMonitoring() {
+    ref.listen<bool>(bottomNavBarBannerStateProvider, (previous, next) {
+      if (!next && !_isDisposed && mounted) {
+        Future.delayed(Duration(milliseconds: 500), () {
+          if (!_isDisposed) {
+            _ensureBannerAd();
+          }
+        });
+      }
+    });
+  }
+
+  Future<void> _onItemTapped(int index, String label) async {
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+      eventName: '${label}_Page_Button_Clicked',
+      parameters: {
+        'screen': 'main_screen',
+      },
+    );
+    if (ref.read(bottomNavBarLoadingProvider)) return;
+
     _animationController.forward().then((_) {
       _animationController.reverse();
     });
 
-    if (index == 0 || index == 4) {
-      final adState = ref.read(interstitialAdStateProvider);
+    if (_userId == null) return;
 
-      if (adState.isLoaded) {
-        final didShow = await ref
-            .read(interstitialAdStateProvider.notifier)
-            .showInterstitialAd();
+    ref.read(bottomNavBarLoadingProvider.notifier).state = true;
 
-        if (!didShow) {
-          ref.read(bottomNavBarProvider).setPageIndex(index);
-          ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
-        } else {
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (mounted) {
-              ref.read(bottomNavBarProvider).setPageIndex(index);
-              ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
-            }
-          });
-        }
-      } else {
-        ref.read(bottomNavBarProvider).setPageIndex(index);
-        ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+    try {
+      final centralAdNotifier = ref.read(centralAdManagementProvider.notifier);
+      centralAdNotifier.setWidgetRef(ref);
+      await centralAdNotifier.loadCollapsibleBannerAd();
+
+    } catch (e) {
+    } finally {
+      if (!_isDisposed && mounted) {
+        ref.read(bottomNavBarLoadingProvider.notifier).state = false;
       }
-    } else {
-      ref.read(bottomNavBarProvider).setPageIndex(index);
     }
+
+    ref.read(bottomNavBarProvider).setPageIndex(index);
+    if (index == 1 || index == 4) {
+      _handleInterstitialAdLogic();
+    }
+  }
+
+  void _handleInterstitialAdLogic() {
+
+    final currentCount = ref.read(bottomNavBarInterstitialCounterProvider);
+    final newCount = currentCount + 1;
+    ref.read(bottomNavBarInterstitialCounterProvider.notifier).state = newCount;
+
+    if (newCount % 3 == 0) {
+      Future.delayed(Duration(milliseconds: 500), () async {
+        if (_isDisposed) {
+          return;
+        }
+
+        final centralAdNotifier = ref.read(centralAdManagementProvider.notifier);
+        final adState = ref.read(centralAdManagementProvider);
+        final canShow = centralAdNotifier.canShowAd();
+        final isLoaded = centralAdNotifier.isAdLoaded('interstitial');
+
+        if (isLoaded && canShow) {
+          try {
+            final didShow = await centralAdNotifier.showInterstitialAd();
+
+            if (!didShow) {
+              await centralAdNotifier.loadInterstitialAd();
+            } else {
+              print('[INTERSTITIAL DEBUG] ✅ Ad shown successfully!');
+            }
+          } catch (e, stack) {
+            print('[INTERSTITIAL DEBUG] ❌ Exception in showInterstitialAd: $e');
+            print('[INTERSTITIAL DEBUG] Stack trace: $stack');
+          }
+        } else {
+          if (!isLoaded) {
+            await centralAdNotifier.loadInterstitialAd();
+          }
+          if (!canShow) {
+            print('[INTERSTITIAL DEBUG]   - Cannot show ad (isShowingAd: ${adState.isShowingAd})');
+            print('[INTERSTITIAL DEBUG]   - Last ad shown: ${adState.lastAdShownTime}');
+          }
+        }
+      });
+    } else {
+      print('[INTERSTITIAL DEBUG] ⏳ Not showing ad yet (click ${newCount % 3} of 3)');
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _bannerRetryTimer?.cancel();
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
@@ -108,10 +214,55 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
     final bottomNavBarState = ref.watch(bottomNavBarProvider);
     final pageIndex = bottomNavBarState.pageIndex;
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final isLoading = ref.watch(bottomNavBarLoadingProvider);
+
+    final bannerState = ref.watch(bannerAdStateProvider);
+    final isBannerShowing = bannerState.isLoaded &&
+        bannerState.bannerAd != null &&
+        bannerState.adLoaded &&
+        bannerState.isCollapsible;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isDisposed) {
+        ref.read(bottomNavBarBannerStateProvider.notifier).state = isBannerShowing;
+      }
+    });
+
+    if (isLoading) {
+      return Scaffold(
+        backgroundColor: theme.colorScheme.surface,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 60,
+                height: 60,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Loading...',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       resizeToAvoidBottomInset: false,
+      drawerEdgeDragWidth: MediaQuery.of(context).size.width,
       body: Stack(
         children: [
           Column(
@@ -126,7 +277,7 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
                 ),
               ),
               if (!isKeyboardOpen)
-                SizedBox(height: _getBottomSectionHeight(context)),
+                SizedBox(height: _getBottomSectionHeight(context, isBannerShowing)),
             ],
           ),
           if (!isKeyboardOpen)
@@ -134,20 +285,20 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
               left: 0,
               right: 0,
               bottom: 0,
-              child: _buildBottomSection(theme, pageIndex, context),
+              child: _buildBottomSection(theme, pageIndex, context, isBannerShowing),
             ),
         ],
       ),
     );
   }
 
-  double _getBottomSectionHeight(BuildContext context) {
+  double _getBottomSectionHeight(BuildContext context, bool isBannerShowing) {
     final navBarHeight = 80.0 + 24.0;
-    final bannerHeight = MediaQuery.of(context).size.width * 0.15;
+    final bannerHeight = isBannerShowing ? (MediaQuery.of(context).size.width * 0.15) : 0;
     return navBarHeight + bannerHeight;
   }
 
-  Widget _buildBottomSection(ThemeData theme, int currentIndex, BuildContext context) {
+  Widget _buildBottomSection(ThemeData theme, int currentIndex, BuildContext context, bool isBannerShowing) {
     return SafeArea(
       top: false,
       child: Column(
@@ -247,11 +398,12 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
               ),
             ),
           ),
-          const BannerAdWidget(isCollapsible: true,),
+          CollapsibleBannerAdWidget(uniqueScreenKey: '/bottom-bar'),
         ],
       ),
     );
   }
+
 
   Widget _buildSideNavigationItem({
     required IconData icon,
@@ -264,13 +416,13 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
     final isActive = currentIndex == index;
 
     return GestureDetector(
-      onTap: () => _onItemTapped(index),
+      onTap: () => _onItemTapped(index,label),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.fastOutSlowIn,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(100),
           color: isActive
               ? theme.colorScheme.primary.withOpacity(0.12)
               : Colors.transparent,
@@ -314,7 +466,7 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar> with SingleTickerPr
     final isActive = currentIndex == index;
 
     return GestureDetector(
-      onTap: () => _onItemTapped(index),
+      onTap: () => _onItemTapped(index,label),
       child: AnimatedBuilder(
         animation: _animationController,
         builder: (context, child) {

@@ -1,51 +1,64 @@
 import 'package:Artleap.ai/shared/route_export.dart';
 
-final nativeAdProvider =
-StateNotifierProvider<NativeAdNotifier, NativeAdState>((ref) {
+final nativeAdProvider = StateNotifierProvider<NativeAdNotifier, NativeAdState>((ref) {
   return NativeAdNotifier();
 });
 
 class NativeAdState {
-  final List<NativeAd> nativeAds;
-  final List<bool> adReadyStatus;
-  final bool isLoading;
-  final bool isLoaded;
+  final List<NativeAd> mediumNativeAds;
+  final List<NativeAd> smallNativeAds;
+  final List<bool> mediumAdReadyStatus;
+  final List<bool> smallAdReadyStatus;
+  final bool isLoadingMedium;
+  final bool isLoadingSmall;
+  final bool isMediumLoaded;
+  final bool isSmallLoaded;
   final bool showAds;
   final int retryCount;
   final String? errorMessage;
-  final TemplateType templateType;
 
   NativeAdState({
-    List<NativeAd>? nativeAds,
-    List<bool>? adReadyStatus,
-    this.isLoading = false,
-    this.isLoaded = false,
+    List<NativeAd>? mediumNativeAds,
+    List<NativeAd>? smallNativeAds,
+    List<bool>? mediumAdReadyStatus,
+    List<bool>? smallAdReadyStatus,
+    this.isLoadingMedium = false,
+    this.isLoadingSmall = false,
+    this.isMediumLoaded = false,
+    this.isSmallLoaded = false,
     this.showAds = true,
     this.retryCount = 0,
     this.errorMessage,
-    this.templateType = TemplateType.medium,
-  })  : nativeAds = nativeAds ?? [],
-        adReadyStatus = adReadyStatus ?? [];
+  })  : mediumNativeAds = mediumNativeAds ?? [],
+        smallNativeAds = smallNativeAds ?? [],
+        mediumAdReadyStatus = mediumAdReadyStatus ?? [],
+        smallAdReadyStatus = smallAdReadyStatus ?? [];
 
   NativeAdState copyWith({
-    List<NativeAd>? nativeAds,
-    List<bool>? adReadyStatus,
-    bool? isLoading,
-    bool? isLoaded,
+    List<NativeAd>? mediumNativeAds,
+    List<NativeAd>? smallNativeAds,
+    List<bool>? mediumAdReadyStatus,
+    List<bool>? smallAdReadyStatus,
+    bool? isLoadingMedium,
+    bool? isLoadingSmall,
+    bool? isMediumLoaded,
+    bool? isSmallLoaded,
     bool? showAds,
     int? retryCount,
     String? errorMessage,
-    TemplateType? templateType,
   }) {
     return NativeAdState(
-      nativeAds: nativeAds ?? this.nativeAds,
-      adReadyStatus: adReadyStatus ?? this.adReadyStatus,
-      isLoading: isLoading ?? this.isLoading,
-      isLoaded: isLoaded ?? this.isLoaded,
+      mediumNativeAds: mediumNativeAds ?? this.mediumNativeAds,
+      smallNativeAds: smallNativeAds ?? this.smallNativeAds,
+      mediumAdReadyStatus: mediumAdReadyStatus ?? this.mediumAdReadyStatus,
+      smallAdReadyStatus: smallAdReadyStatus ?? this.smallAdReadyStatus,
+      isLoadingMedium: isLoadingMedium ?? this.isLoadingMedium,
+      isLoadingSmall: isLoadingSmall ?? this.isLoadingSmall,
+      isMediumLoaded: isMediumLoaded ?? this.isMediumLoaded,
+      isSmallLoaded: isSmallLoaded ?? this.isSmallLoaded,
       showAds: showAds ?? this.showAds,
       retryCount: retryCount ?? this.retryCount,
       errorMessage: errorMessage,
-      templateType: templateType ?? this.templateType,
     );
   }
 }
@@ -54,18 +67,18 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
   NativeAdNotifier() : super(NativeAdState());
 
   Future<void> loadSmallNativeAds() async {
-    await _loadAds(TemplateType.small, 3);
+    await _loadSmallAds(1);
   }
 
-  Future<void> loadMultipleAds() async {
-    await _loadAds(TemplateType.medium, 5);
+  Future<void> loadMediumNativeAds() async {
+    await _loadMediumAds(1);
   }
 
-  Future<void> loadNativeAd() async {
-    await _loadAds(TemplateType.medium, 1);
+  Future<void> loadMultipleNativeAds() async {
+    await _loadMediumAds(5);
   }
 
-  Future<void> _loadAds(TemplateType templateType, int adCount) async {
+  Future<void> _loadSmallAds(int adCount) async {
     final config = RemoteConfigService.instance;
 
     if (!config.showNativeAds) {
@@ -73,8 +86,9 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
       return;
     }
 
-    if (state.isLoading) return;
-    for (var ad in state.nativeAds) {
+    if (state.isLoadingSmall) return;
+
+    for (var ad in state.smallNativeAds) {
       ad.dispose();
     }
 
@@ -82,15 +96,13 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     final List<bool> ready = List.filled(adCount, false);
 
     state = state.copyWith(
-      nativeAds: [],
-      adReadyStatus: [],
-      isLoading: true,
-      isLoaded: false,
-      templateType: templateType,
+      smallNativeAds: [],
+      smallAdReadyStatus: [],
+      isLoadingSmall: true,
+      isSmallLoaded: false,
     );
 
     int completed = 0;
-    final double cornerRadius = templateType == TemplateType.small ? 8 : 12;
 
     for (int i = 0; i < adCount; i++) {
       final index = i;
@@ -99,22 +111,20 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
         adUnitId: config.nativeAdUnit,
         request: const AdRequest(),
         nativeTemplateStyle: NativeTemplateStyle(
-          templateType: templateType,
-          cornerRadius: cornerRadius,
+          templateType: TemplateType.small,
+          cornerRadius: 8,
         ),
         listener: NativeAdListener(
           onAdLoaded: (ad) {
             ads[index] = ad as NativeAd;
             ready[index] = true;
             completed++;
-
-            _updateFinalStateIfDone(ads, ready, completed, adCount);
+            _updateSmallAdFinalStateIfDone(ads, ready, completed, adCount);
           },
           onAdFailedToLoad: (ad, error) {
             ad.dispose();
             completed++;
-
-            _updateFinalStateIfDone(ads, ready, completed, adCount);
+            _updateSmallAdFinalStateIfDone(ads, ready, completed, adCount);
           },
         ),
       );
@@ -123,7 +133,62 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     }
   }
 
-  void _updateFinalStateIfDone(
+  Future<void> _loadMediumAds(int adCount) async {
+    final config = RemoteConfigService.instance;
+
+    if (!config.showNativeAds) {
+      state = state.copyWith(showAds: false);
+      return;
+    }
+
+    if (state.isLoadingMedium) return;
+
+    for (var ad in state.mediumNativeAds) {
+      ad.dispose();
+    }
+
+    final List<NativeAd?> ads = List.filled(adCount, null);
+    final List<bool> ready = List.filled(adCount, false);
+
+    state = state.copyWith(
+      mediumNativeAds: [],
+      mediumAdReadyStatus: [],
+      isLoadingMedium: true,
+      isMediumLoaded: false,
+    );
+
+    int completed = 0;
+
+    for (int i = 0; i < adCount; i++) {
+      final index = i;
+
+      final ad = NativeAd(
+        adUnitId: config.nativeAdUnit,
+        request: const AdRequest(),
+        nativeTemplateStyle: NativeTemplateStyle(
+          templateType: TemplateType.medium,
+          cornerRadius: 12,
+        ),
+        listener: NativeAdListener(
+          onAdLoaded: (ad) {
+            ads[index] = ad as NativeAd;
+            ready[index] = true;
+            completed++;
+            _updateMediumAdFinalStateIfDone(ads, ready, completed, adCount);
+          },
+          onAdFailedToLoad: (ad, error) {
+            ad.dispose();
+            completed++;
+            _updateMediumAdFinalStateIfDone(ads, ready, completed, adCount);
+          },
+        ),
+      );
+
+      await ad.load();
+    }
+  }
+
+  void _updateSmallAdFinalStateIfDone(
       List<NativeAd?> ads,
       List<bool> ready,
       int completed,
@@ -142,18 +207,53 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     }
 
     state = state.copyWith(
-      nativeAds: loadedAds,
-      adReadyStatus: readyStatus,
-      isLoading: false,
-      isLoaded: loadedAds.isNotEmpty,
+      smallNativeAds: loadedAds,
+      smallAdReadyStatus: readyStatus,
+      isLoadingSmall: false,
+      isSmallLoaded: loadedAds.isNotEmpty,
     );
   }
 
-  bool isAdReady(int index) {
+  void _updateMediumAdFinalStateIfDone(
+      List<NativeAd?> ads,
+      List<bool> ready,
+      int completed,
+      int adCount,
+      ) {
+    if (completed < adCount) return;
+
+    final loadedAds = <NativeAd>[];
+    final readyStatus = <bool>[];
+
+    for (int i = 0; i < ads.length; i++) {
+      if (ads[i] != null && ready[i]) {
+        loadedAds.add(ads[i]!);
+        readyStatus.add(true);
+      }
+    }
+
+    state = state.copyWith(
+      mediumNativeAds: loadedAds,
+      mediumAdReadyStatus: readyStatus,
+      isLoadingMedium: false,
+      isMediumLoaded: loadedAds.isNotEmpty,
+    );
+  }
+
+  bool isSmallAdReady(int index) {
     if (index >= 0 &&
-        index < state.nativeAds.length &&
-        index < state.adReadyStatus.length) {
-      return state.adReadyStatus[index];
+        index < state.smallNativeAds.length &&
+        index < state.smallAdReadyStatus.length) {
+      return state.smallAdReadyStatus[index];
+    }
+    return false;
+  }
+
+  bool isMediumAdReady(int index) {
+    if (index >= 0 &&
+        index < state.mediumNativeAds.length &&
+        index < state.mediumAdReadyStatus.length) {
+      return state.mediumAdReadyStatus[index];
     }
     return false;
   }
@@ -166,13 +266,13 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
       return;
     }
 
-    if (state.isLoading || state.isLoaded) return;
+    if (state.isLoadingMedium) return;
 
     if (!AdService.instance.isInitialized) {
       await AdService.instance.initialize();
     }
 
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoadingMedium: true, errorMessage: null);
 
     final ad = NativeAd(
       adUnitId: config.nativeAdUnit,
@@ -184,10 +284,10 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
       listener: NativeAdListener(
         onAdLoaded: (ad) {
           state = state.copyWith(
-            nativeAds: [ad as NativeAd],
-            adReadyStatus: [true],
-            isLoading: false,
-            isLoaded: true,
+            mediumNativeAds: [ad as NativeAd],
+            mediumAdReadyStatus: [true],
+            isLoadingMedium: false,
+            isMediumLoaded: true,
             retryCount: 0,
             errorMessage: null,
           );
@@ -195,10 +295,10 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
           state = state.copyWith(
-            nativeAds: [],
-            adReadyStatus: [],
-            isLoading: false,
-            isLoaded: false,
+            mediumNativeAds: [],
+            mediumAdReadyStatus: [],
+            isLoadingMedium: false,
+            isMediumLoaded: false,
             retryCount: state.retryCount + 1,
             errorMessage: error.message,
           );
@@ -209,29 +309,52 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     ad.load();
   }
 
-  void disposeAd() {
-    for (var ad in state.nativeAds) {
+  void disposeAllAds() {
+    for (var ad in state.smallNativeAds) {
+      ad.dispose();
+    }
+    for (var ad in state.mediumNativeAds) {
+      ad.dispose();
+    }
+    state = NativeAdState();
+  }
+
+  void disposeSmallAds() {
+    for (var ad in state.smallNativeAds) {
       ad.dispose();
     }
     state = state.copyWith(
-        nativeAds: [],
-        adReadyStatus: [],
-        isLoaded: false,
-        isLoading: false
+      smallNativeAds: [],
+      smallAdReadyStatus: [],
+      isSmallLoaded: false,
+      isLoadingSmall: false,
+    );
+  }
+
+  void disposeMediumAds() {
+    for (var ad in state.mediumNativeAds) {
+      ad.dispose();
+    }
+    state = state.copyWith(
+      mediumNativeAds: [],
+      mediumAdReadyStatus: [],
+      isMediumLoaded: false,
+      isLoadingMedium: false,
     );
   }
 
   void safeDisposeAds() {
-    for (var ad in state.nativeAds) {
+    for (var ad in state.smallNativeAds) {
+      ad.dispose();
+    }
+    for (var ad in state.mediumNativeAds) {
       ad.dispose();
     }
   }
 
   @override
   void dispose() {
-    for (var ad in state.nativeAds) {
-      ad.dispose();
-    }
+    disposeAllAds();
     super.dispose();
   }
 }

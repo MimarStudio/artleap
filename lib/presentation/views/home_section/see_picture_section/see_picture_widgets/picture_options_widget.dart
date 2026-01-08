@@ -1,4 +1,4 @@
-import 'package:Artleap.ai/ads/rewarded_ads/rewarded_Ad_helper.dart';
+import 'package:Artleap.ai/providers/download_state_manager.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class PictureOptionsWidget extends ConsumerWidget {
@@ -39,9 +39,11 @@ class PictureOptionsWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isCurrentUser = otherUserId == UserData.ins.userId;
     final theme = Theme.of(context);
+    final downloadState = ref.watch(downloadStateProvider);
+    final favState = ref.watch(favProvider);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 2),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -78,16 +80,21 @@ class PictureOptionsWidget extends ConsumerWidget {
                     color: Colors.red,
                     context: context,
                     isLiked:
-                        ref.watch(favouriteProvider).usersFavourites != null
-                            ? ref
-                                .watch(favouriteProvider)
-                                .usersFavourites!
-                                .favorites
-                                .any((img) => img.id == imageId)
-                            : false,
+                    ref.watch(favouriteProvider).usersFavourites != null
+                        ? ref
+                        .watch(favouriteProvider)
+                        .usersFavourites!
+                        .favorites
+                        .any((img) => img.id == imageId)
+                        : false,
                     onTap: () async {
-                      AnalyticsService.instance
-                          .logButtonClick(buttonName: 'Favorite button event');
+                      AnalyticsService.instance.logButtonClick(buttonName: 'Favorite button event');
+                      final analyticsService = ref.read(analyticsServiceProvider);
+                      analyticsService.logCustomEvent(
+                          eventName: 'favourite_button_clicked(see_picture_screen)',
+                          parameters: {
+                            'screen': 'see_picture_screen',
+                          });
                       try {
                         await ref
                             .read(favouriteProvider)
@@ -101,43 +108,8 @@ class PictureOptionsWidget extends ConsumerWidget {
                     label: "Download",
                     color: Colors.green,
                     context: context,
-                    isLoading: ref.watch(favProvider).isDownloading == true,
-                    onTap: () async {
-                      final userProfile = ref.read(userProfileProvider).value?.userProfile;
-                      final isFreePlan = userProfile?.user.planName.toLowerCase() == 'free';
-                      final rewardDailyCount = userProfile?.user.rewardDailyCount ?? 0;
-                      if (isFreePlan && rewardDailyCount < 2) {
-                        await SimpleRewardedAdHelper.simpleRewardedAd(
-                          ref: ref,
-                          onAdDismissed: () {
-                            uint8ListImage != null
-                                ? ref.read(favProvider).downloadImage(imageUrl!,
-                                uint8ListObject: uint8ListImage)
-                                : ref.read(favProvider).downloadImage(imageUrl!);
-                            AnalyticsService.instance
-                                .logButtonClick(buttonName: 'download button event');
-                          },
-                          onRewardEarned: () {
-
-                          },
-                          onAdFailed: () {
-                            uint8ListImage != null
-                                ? ref.read(favProvider).downloadImage(imageUrl!,
-                                uint8ListObject: uint8ListImage)
-                                : ref.read(favProvider).downloadImage(imageUrl!);
-                            AnalyticsService.instance
-                                .logButtonClick(buttonName: 'download button event');
-                          },
-                        );
-                      } else {
-                        uint8ListImage != null
-                            ? ref.read(favProvider).downloadImage(imageUrl!,
-                            uint8ListObject: uint8ListImage)
-                            : ref.read(favProvider).downloadImage(imageUrl!);
-                        AnalyticsService.instance
-                            .logButtonClick(buttonName: 'download button event');
-                      }
-                    },
+                    isLoading: downloadState.isDownloading || favState.isDownloading == true,
+                    onTap: () => _handleDownload(context, ref),
                   ),
                   _buildActionButton(
                     icon: Icons.share_rounded,
@@ -146,8 +118,13 @@ class PictureOptionsWidget extends ConsumerWidget {
                     context: context,
                     onTap: () async {
                       await Share.shareUri(Uri.parse(imageUrl!));
-                      AnalyticsService.instance
-                          .logButtonClick(buttonName: 'share button event');
+                      AnalyticsService.instance.logButtonClick(buttonName: 'share button event');
+                      final analyticsService = ref.read(analyticsServiceProvider);
+                      analyticsService.logCustomEvent(
+                          eventName: 'share_button_clicked(see_picture_screen)',
+                          parameters: {
+                            'screen': 'see_picture_screen',
+                          });
                     },
                   ),
                   if (isCurrentUser) ...[
@@ -158,13 +135,18 @@ class PictureOptionsWidget extends ConsumerWidget {
                       context: context,
                       showPremiumIcon: !isPremiumUser,
                       onTap: () async {
+                        final analyticsService = ref.read(analyticsServiceProvider);
+                        analyticsService.logCustomEvent(
+                            eventName: 'privacy_button_clicked(see_picture_screen)',
+                            parameters: {
+                              'screen': 'see_picture_screen',
+                            });
                         if (!isPremiumUser) {
                           DialogService.showPremiumUpgrade(
                               context: context,
                               featureName: "Privacy Settings",
                               onConfirm: () {
-                                Navigator.of(context)
-                                    .pushNamed(ChoosePlanScreen.routeName);
+                                Navigator.of(context).pushNamed(ChoosePlanScreen.routeName);
                               });
                           return;
                         }
@@ -195,15 +177,24 @@ class PictureOptionsWidget extends ConsumerWidget {
                       isLoading: ref.watch(imageActionsProvider).isDeleting,
                       context: context,
                       onTap: () {
-                        AnalyticsService.instance
-                            .logButtonClick(buttonName: 'delete button event');
+                        AnalyticsService.instance.logButtonClick(buttonName: 'delete button event');
+                        final analyticsService = ref.read(analyticsServiceProvider);
+                        analyticsService.logCustomEvent(
+                            eventName: 'delete_button_clicked(see_picture_screen)',
+                            parameters: {
+                              'screen': 'see_picture_screen',
+                            });
                         DialogService.confirmDelete(
                           context: context,
                           itemName: 'image',
                           onDelete: () async {
-                            final success = await ref
-                                .read(imageActionsProvider)
-                                .deleteImage(imageId!);
+                            final success = await ref.read(imageActionsProvider).deleteImage(imageId!);
+                            final analyticsService = ref.read(analyticsServiceProvider);
+                            analyticsService.logCustomEvent(
+                                eventName: 'delete_confirm_image_button_clicked(see_picture_screen)',
+                                parameters: {
+                                  'screen': 'see_picture_screen',
+                                });
                             if (success) {
                               Navigator.pushReplacement(
                                 context,
@@ -212,8 +203,7 @@ class PictureOptionsWidget extends ConsumerWidget {
                               );
                             } else {
                               Navigator.pop(context);
-                              appSnackBar('Error', 'Failed to delete image',
-                                  backgroundColor: AppColors.red);
+                              appSnackBar('Error', 'Failed to delete image', backgroundColor: AppColors.red);
                             }
                           },
                         );
@@ -226,6 +216,12 @@ class PictureOptionsWidget extends ConsumerWidget {
                     label: "Report",
                     color: Colors.orange,
                     onTap: () {
+                      final analyticsService = ref.read(analyticsServiceProvider);
+                      analyticsService.logCustomEvent(
+                          eventName: 'report_image_button_clicked(see_picture_screen)',
+                          parameters: {
+                            'screen': 'see_picture_screen',
+                          });
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -246,6 +242,35 @@ class PictureOptionsWidget extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _handleDownload(BuildContext context, WidgetRef ref) async {
+    if (imageUrl == null || imageUrl!.isEmpty) {
+      appSnackBar('Error', 'No image available to download', backgroundColor: AppColors.red);
+      return;
+    }
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+        eventName: 'download_image_button_clicked',
+        parameters: {
+          'screen': 'see_picture_screen',
+        });
+    try {
+      AnalyticsService.instance.logButtonClick(buttonName: 'download button event');
+
+      await DownloadAdHelper.handleDownload(
+        ref: ref,
+        imageUrl: imageUrl!,
+        uint8ListObject: uint8ListImage,
+        onDownloadComplete: () {
+          appSnackBar('Success', 'Image downloaded successfully', backgroundColor: AppColors.green);
+        },
+      );
+
+    } catch (e) {
+      print('[DOWNLOAD DEBUG] Download failed: $e');
+      appSnackBar('Error', 'Failed to download image', backgroundColor: AppColors.red);
+    }
   }
 
   ImagePrivacy _privacyFromString(String privacy) {
@@ -294,44 +319,44 @@ class PictureOptionsWidget extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(16),
                       child: isLoading
                           ? Center(
-                              child: LoadingAnimationWidget.threeArchedCircle(
-                                color: color,
-                                size: 24,
-                              ),
-                            )
+                        child: LoadingAnimationWidget.threeArchedCircle(
+                          color: color,
+                          size: 24,
+                        ),
+                      )
                           : isLikeButton
-                              ? Center(
-                                  child: LikeButton(
-                                    size: 28,
-                                    isLiked: isLiked,
-                                    likeBuilder: (bool isLiked) {
-                                      return Icon(
-                                        isLiked
-                                            ? Icons.favorite_rounded
-                                            : Icons.favorite_border_rounded,
-                                        color: isLiked
-                                            ? color
-                                            : color.withOpacity(0.6),
-                                        size: 28,
-                                      );
-                                    },
-                                    bubblesColor: BubblesColor(
-                                      dotPrimaryColor: color,
-                                      dotSecondaryColor: color,
-                                    ),
-                                    onTap: (isLiked) async {
-                                      onTap();
-                                      return !isLiked;
-                                    },
-                                  ),
-                                )
-                              : Center(
-                                  child: Icon(
-                                    icon,
-                                    color: color,
-                                    size: 28,
-                                  ),
-                                ),
+                          ? Center(
+                        child: LikeButton(
+                          size: 28,
+                          isLiked: isLiked,
+                          likeBuilder: (bool isLiked) {
+                            return Icon(
+                              isLiked
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              color: isLiked
+                                  ? color
+                                  : color.withOpacity(0.6),
+                              size: 28,
+                            );
+                          },
+                          bubblesColor: BubblesColor(
+                            dotPrimaryColor: color,
+                            dotSecondaryColor: color,
+                          ),
+                          onTap: (isLiked) async {
+                            onTap();
+                            return !isLiked;
+                          },
+                        ),
+                      )
+                          : Center(
+                        child: Icon(
+                          icon,
+                          color: color,
+                          size: 28,
+                        ),
+                      ),
                     ),
                   ),
                 ),

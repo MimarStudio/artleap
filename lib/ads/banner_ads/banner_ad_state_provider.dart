@@ -12,6 +12,7 @@ class BannerAdState {
   final int retryCount;
   final bool isCollapsible;
   final bool isLoaded;
+  final BannerAd? bannerAd;
 
   BannerAdState({
     this.isLoading = false,
@@ -20,6 +21,7 @@ class BannerAdState {
     this.retryCount = 0,
     this.isCollapsible = false,
     this.isLoaded = false,
+    this.bannerAd,
   }) : adSize = adSize ?? AdSize.banner;
 
   BannerAdState copyWith({
@@ -29,6 +31,7 @@ class BannerAdState {
     int? retryCount,
     bool? isCollapsible,
     bool? isLoaded,
+    BannerAd? bannerAd,
   }) {
     return BannerAdState(
       isLoading: isLoading ?? this.isLoading,
@@ -37,6 +40,7 @@ class BannerAdState {
       retryCount: retryCount ?? this.retryCount,
       isCollapsible: isCollapsible ?? this.isCollapsible,
       isLoaded: isLoaded ?? this.isLoaded,
+      bannerAd: bannerAd ?? this.bannerAd,
     );
   }
 }
@@ -79,7 +83,6 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
       return;
     }
 
-    // Get adaptive ad size first
     final screenWidth = MediaQueryData.fromWindow(WidgetsBinding.instance.window).size.width.truncate();
     final adaptiveAdSize = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(screenWidth);
 
@@ -98,8 +101,6 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
     _bannerAd = null;
 
     final adUnitId = _ref.read(remoteConfigProvider).bannerAdUnit;
-
-    // Create collapsible request if enabled
     final adRequest = state.isCollapsible
         ? const AdRequest(extras: {"collapsible": "bottom"})
         : const AdRequest();
@@ -117,6 +118,7 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
               isLoaded: true,
               adSize: adaptiveAdSize,
               retryCount: 0,
+              bannerAd: ad as BannerAd,
             );
           }
         },
@@ -127,6 +129,7 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
               isLoading: false,
               adLoaded: false,
               isLoaded: true,
+              bannerAd: null,
               retryCount: state.retryCount + 1,
             );
 
@@ -159,7 +162,14 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
     }
   }
 
-  BannerAd? get bannerAd => _bannerAd;
+  void disposeBanner() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _bannerAd?.dispose();
+    state.bannerAd?.dispose();
+    _bannerAd = null;
+    state = BannerAdState();
+  }
 
   void retryLoading() {
     if (!_isDisposed && !state.isLoading) {
@@ -171,10 +181,7 @@ class BannerAdStateNotifier extends StateNotifier<BannerAdState> {
   @override
   void dispose() {
     _isDisposed = true;
-    _retryTimer?.cancel();
-    _retryTimer = null;
-    _bannerAd?.dispose();
-    _bannerAd = null;
+    disposeBanner();
     super.dispose();
   }
 }

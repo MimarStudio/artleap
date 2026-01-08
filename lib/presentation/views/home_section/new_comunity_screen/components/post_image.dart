@@ -80,6 +80,13 @@ class PostImage extends ConsumerWidget {
       },
       child: GestureDetector(
         onTap: () {
+          AnalyticsService.instance.logButtonClick(buttonName: 'Image Clicked(Community Post Page)');
+          final analyticsService = ref.read(analyticsServiceProvider);
+          analyticsService.logCustomEvent(
+              eventName: 'Image_clicked(Community Post Page)',
+              parameters: {
+                'screen': 'community_post_page',
+              });
           Navigation.pushNamed(
             SeePictureScreen.routeName,
             arguments: SeePictureParams(

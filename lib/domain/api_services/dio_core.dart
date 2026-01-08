@@ -89,26 +89,13 @@ class DioCore {
         },
       ),
     );
-
-    // OPTIONAL: If you want to see *all* requests/responses while debugging, uncomment:
-    // _dio.interceptors.add(LogInterceptor(
-    //   request: true,
-    //   requestHeader: true,
-    //   requestBody: true,
-    //   responseHeader: false,
-    //   responseBody: true,
-    //   error: true,
-    // ));
   }
 
-  // Helper to retry original request with a fresh token.
   static Future<Response<dynamic>> _retryWithToken(
       Dio dio,
       RequestOptions req,
       String token,
       ) async {
-    // ⚠️ If the original body was FormData, its byte stream may have been consumed already.
-    // To be safe, do NOT retry FormData automatically (see note below).
     if (req.data is FormData) {
       return Future.error(DioException(
         requestOptions: req,
@@ -121,7 +108,6 @@ class DioCore {
     final opts = Options(
       method: req.method,
       headers: {
-        // Preserve original headers and override Authorization
         ...req.headers,
         'Authorization': 'Bearer $token',
       },
@@ -133,7 +119,6 @@ class DioCore {
       validateStatus: req.validateStatus,
     );
 
-    // Respect full URL vs relative path
     final pathOrUrl = req.path.startsWith('http')
         ? req.path
         : req.uri.toString().replaceFirst(req.baseUrl, '');
@@ -149,14 +134,11 @@ class DioCore {
     );
   }
 
-  // ===== DEBUG HELPERS =====
-
   void _debugLogIfUserIdRequired(DioException e) {
     final res = e.response;
     final data = res?.data;
     final msg = _extractMessage(data)?.toLowerCase() ?? '';
 
-    // Match common variants from backend messages
     final mentionsUserIdRequired = msg.contains('user id is required') ||
         msg.contains('userid is required') ||
         msg.contains('userId is required'.toLowerCase()) ||
@@ -165,29 +147,16 @@ class DioCore {
     if (mentionsUserIdRequired) {
       final r = e.requestOptions;
       final url = r.uri.toString();
-      // Highly focused log so you can see exactly what failed
-      // (kept as prints to avoid depending on any logger)
-      // You can adjust to debugPrint(...) if you prefer.
-      // ignore: avoid_print
-      print('❌ "user id is required" from ${r.method} $url');
-      // ignore: avoid_print
-      print('   headers: ${r.headers}');
-      // ignore: avoid_print
-      print('   query  : ${r.queryParameters}');
       if (r.data != null) {
-        // ignore: avoid_print
         print('   body   : ${r.data}');
       }
-      // ignore: avoid_print
       print('   status : ${res?.statusCode}');
-      // ignore: avoid_print
       print('   response: ${res?.data}');
     }
   }
 
   String? _extractMessage(dynamic data) {
     if (data is Map) {
-      // common API patterns
       if (data['message'] is String && (data['message'] as String).isNotEmpty) {
         return data['message'] as String;
       }

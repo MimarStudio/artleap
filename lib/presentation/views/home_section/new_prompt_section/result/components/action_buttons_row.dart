@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/providers/download_state_manager.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class ActionButtonsRow extends ConsumerWidget {
@@ -13,7 +14,7 @@ class ActionButtonsRow extends ConsumerWidget {
     final isLoading = ref.watch(generateImageProvider).isGenerateImageLoading;
 
     final currentImageData =
-        _getCurrentImageData(generatedImages, generatedTextToImageData);
+    _getCurrentImageData(generatedImages, generatedTextToImageData);
 
     if (isLoading || currentImageData == null) {
       return _buildLoadingButtons(theme);
@@ -125,10 +126,10 @@ class ActionButtonsRow extends ConsumerWidget {
       BuildContext context, WidgetRef ref, String imageId, ThemeData theme) {
     final isLiked = ref.watch(favouriteProvider).usersFavourites != null
         ? ref
-            .watch(favouriteProvider)
-            .usersFavourites!
-            .favorites
-            .any((img) => img.id == imageId)
+        .watch(favouriteProvider)
+        .usersFavourites!
+        .favorites
+        .any((img) => img.id == imageId)
         : false;
 
     return _buildActionButton(
@@ -139,8 +140,13 @@ class ActionButtonsRow extends ConsumerWidget {
       isLikeButton: true,
       isLiked: isLiked,
       onTap: () async {
-        AnalyticsService.instance
-            .logButtonClick(buttonName: 'Favorite button event');
+        AnalyticsService.instance.logButtonClick(buttonName: 'Favorite button event');
+        final analyticsService = ref.read(analyticsServiceProvider);
+        analyticsService.logCustomEvent(
+            eventName: 'favourite_button_clicked(screen_after_result)',
+            parameters: {
+              'screen': 'screen_after_result',
+            });
         try {
           final currentUserId = UserData.ins.userId ?? '';
           if (currentUserId.isNotEmpty && imageId.isNotEmpty) {
@@ -157,20 +163,81 @@ class ActionButtonsRow extends ConsumerWidget {
 
   Widget _buildDownloadButton(
       BuildContext context, WidgetRef ref, String imageUrl, ThemeData theme) {
-    final isLoading = ref.watch(favProvider).isDownloading == true;
+    final downloadState = ref.watch(downloadStateProvider);
+    final favState = ref.watch(favProvider);
 
-    return _buildActionButton(
-      icon: Icons.download_rounded,
-      label: 'Download',
-      color: Colors.green,
-      theme: theme,
-      isLoading: isLoading,
-      onTap: () {
-        AnalyticsService.instance
-            .logButtonClick(buttonName: 'download button event');
-        ref.read(favProvider).downloadImage(imageUrl);
-      },
+    final isLoading = downloadState.isDownloading || favState.isDownloading == true;
+
+    // Get remaining downloads for next ad
+    final remainingForAd = ref.read(downloadStateProvider.notifier).getRemainingDownloadsForNextAd();
+    final downloadCount = downloadState.downloadCount;
+
+    return Column(
+      children: [
+        Tooltip(
+          message: remainingForAd == 0
+              ? 'Next download will show an ad'
+              : 'Downloads: $downloadCount (Next ad in $remainingForAd)',
+          child: _buildActionButton(
+            icon: Icons.download_rounded,
+            label: 'Download',
+            color: Colors.green,
+            theme: theme,
+            isLoading: isLoading,
+            onTap: () => _handleDownload(context, ref, imageUrl),
+          ),
+        ),
+        // Optional: Show download counter badge
+        if (downloadCount > 0)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$downloadCount',
+              style: TextStyle(
+                fontSize: 10,
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+      ],
     );
+  }
+
+  Future<void> _handleDownload(BuildContext context, WidgetRef ref, String imageUrl) async {
+    AnalyticsService.instance.logButtonClick(buttonName: 'download button event');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+        eventName: 'download_button_clicked(screen_after_result)',
+        parameters: {
+          'screen': 'screen_after_result',
+        });
+    if (imageUrl.isEmpty) {
+      appSnackBar('Error', 'No image available to download', backgroundColor: AppColors.red);
+      return;
+    }
+    try {
+      await DownloadAdHelper.handleDownload(
+        ref: ref,
+        imageUrl: imageUrl,
+        uint8ListObject: null,
+        onDownloadComplete: () {
+          appSnackBar('Success', 'Image downloaded successfully', backgroundColor: AppColors.green);
+          final downloadCount = ref.read(downloadStateProvider.notifier).getDownloadCount();
+          final remaining = ref.read(downloadStateProvider.notifier).getRemainingDownloadsForNextAd();
+          print('[DOWNLOAD DEBUG] Total downloads: $downloadCount, Next ad in: $remaining downloads');
+        },
+      );
+
+    } catch (e) {
+      print('[DOWNLOAD DEBUG] Download failed: $e');
+      appSnackBar('Error', 'Failed to download image', backgroundColor: AppColors.red);
+    }
   }
 
   Widget _buildShareButton(
@@ -181,8 +248,13 @@ class ActionButtonsRow extends ConsumerWidget {
       color: Colors.blue,
       theme: theme,
       onTap: () async {
-        AnalyticsService.instance
-            .logButtonClick(buttonName: 'share button event');
+        AnalyticsService.instance.logButtonClick(buttonName: 'share button event');
+        final analyticsService = ref.read(analyticsServiceProvider);
+        analyticsService.logCustomEvent(
+            eventName: 'share_button_clicked(screen_after_result)',
+            parameters: {
+              'screen': 'screen_after_result',
+            });
         await Share.shareUri(Uri.parse(imageUrl));
       },
     );
@@ -199,14 +271,24 @@ class ActionButtonsRow extends ConsumerWidget {
       theme: theme,
       isLoading: isLoading,
       onTap: () {
-        AnalyticsService.instance
-            .logButtonClick(buttonName: 'delete button event');
+        AnalyticsService.instance.logButtonClick(buttonName: 'delete button event');
+        final analyticsService = ref.read(analyticsServiceProvider);
+        analyticsService.logCustomEvent(
+            eventName: 'delete_image_button_clicked(screen_after_result)',
+            parameters: {
+              'screen': 'screen_after_result',
+            });
         DialogService.confirmDelete(
           context: context,
           itemName: 'image',
           onDelete: () async {
-            final success =
-                await ref.read(imageActionsProvider).deleteImage(imageId);
+            final success = await ref.read(imageActionsProvider).deleteImage(imageId);
+            final analyticsService = ref.read(analyticsServiceProvider);
+            analyticsService.logCustomEvent(
+                eventName: 'confirm_delete_button_clicked(screen_after_result)',
+                parameters: {
+                  'screen': 'screen_after_result',
+                });
             if (success) {
               Navigator.pushReplacement(
                 context,
@@ -230,6 +312,12 @@ class ActionButtonsRow extends ConsumerWidget {
       color: Colors.orange,
       theme: theme,
       onTap: () {
+        final analyticsService = ref.read(analyticsServiceProvider);
+        analyticsService.logCustomEvent(
+            eventName: 'report_button_clicked(screen_after_result)',
+            parameters: {
+              'screen': 'screen_after_result',
+            });
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
@@ -273,43 +361,43 @@ class ActionButtonsRow extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(25),
                 child: isLoading
                     ? Center(
-                        child: LoadingAnimationWidget.threeArchedCircle(
-                          color: color,
-                          size: 24,
-                        ),
-                      )
+                  child: LoadingAnimationWidget.threeArchedCircle(
+                    color: color,
+                    size: 24,
+                  ),
+                )
                     : isLikeButton
-                        ? Center(
-                            child: LikeButton(
-                              size: 24,
-                              isLiked: isLiked,
-                              likeBuilder: (bool isLiked) {
-                                return Icon(
-                                  isLiked
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_border_rounded,
-                                  color:
-                                      isLiked ? color : color.withOpacity(0.6),
-                                  size: 24,
-                                );
-                              },
-                              bubblesColor: BubblesColor(
-                                dotPrimaryColor: color,
-                                dotSecondaryColor: color,
-                              ),
-                              onTap: (isLiked) async {
-                                onTap();
-                                return !isLiked;
-                              },
-                            ),
-                          )
-                        : Center(
-                            child: Icon(
-                              icon,
-                              color: color,
-                              size: 24,
-                            ),
-                          ),
+                    ? Center(
+                  child: LikeButton(
+                    size: 24,
+                    isLiked: isLiked,
+                    likeBuilder: (bool isLiked) {
+                      return Icon(
+                        isLiked
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color:
+                        isLiked ? color : color.withOpacity(0.6),
+                        size: 24,
+                      );
+                    },
+                    bubblesColor: BubblesColor(
+                      dotPrimaryColor: color,
+                      dotSecondaryColor: color,
+                    ),
+                    onTap: (isLiked) async {
+                      onTap();
+                      return !isLiked;
+                    },
+                  ),
+                )
+                    : Center(
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 24,
+                  ),
+                ),
               ),
             ),
           ),

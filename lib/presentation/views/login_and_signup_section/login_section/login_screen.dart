@@ -14,6 +14,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(authprovider).clearError();
+      AnalyticsService.instance.logScreenView(screenName: 'login screen');
     });
   }
 
@@ -22,6 +23,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authprovider);
     final isLoading = authState.isLoading(LoginMethod.email);
     final authError = authState.authError;
+    final analyticsService = ref.read(analyticsServiceProvider);
+
 
     return RegistrationBackgroundWidget(
       widget: Column(
@@ -56,6 +59,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               color: AppColors.indigo,
               onpress: () {
                 ref.read(authprovider).signInWithEmail();
+
+                AnalyticsService.instance.logButtonClick(buttonName: 'Login Button');
+
+                analyticsService.logCustomEvent(
+                  eventName: 'login_button_clicked',
+                  parameters: {
+                    'screen': 'login_screen',
+                  },
+                );
               },
             ),
           20.spaceY,

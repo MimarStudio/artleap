@@ -4,10 +4,10 @@ import 'reel_model.dart';
 final mockReels = [
   ReelModel(
     id: '1',
-    videoUrl: '',
-    thumbnailUrl: '',
+    videoUrl: 'https://youtube.com/shorts/nqS6yQRHGD8?si=JZSZuOijONopOMct',
+    thumbnailUrl: 'https://www.techsmith.com/wp-content/uploads/2021/02/video-thumbnails-hero-1.png',
     creatorName: 'Creative Artist',
-    creatorAvatar: '',
+    creatorAvatar: 'https://static.vecteezy.com/system/resources/thumbnails/021/185/682/small/man-in-motocross-helmet-racer-rider-cyclist-concept-suitable-for-avatar-profiles-t-shirt-design-print-sticker-poster-vector.jpg',
     caption: 'Amazing AI generated art process! 🎨✨',
     likes: 2543,
     comments: 142,
@@ -17,10 +17,10 @@ final mockReels = [
   ),
   ReelModel(
     id: '2',
-    videoUrl: '',
-    thumbnailUrl: '',
+    videoUrl: 'https://youtube.com/shorts/nqS6yQRHGD8?si=JZSZuOijONopOMct',
+    thumbnailUrl: 'https://www.techsmith.com/wp-content/uploads/2021/02/video-thumbnails-hero-1.png',
     creatorName: 'Digital Designer',
-    creatorAvatar: '',
+    creatorAvatar: 'https://static.vecteezy.com/system/resources/thumbnails/021/185/682/small/man-in-motocross-helmet-racer-rider-cyclist-concept-suitable-for-avatar-profiles-t-shirt-design-print-sticker-poster-vector.jpg',
     caption: 'Transforming ideas into digital masterpieces 🖌️',
     likes: 1876,
     comments: 93,

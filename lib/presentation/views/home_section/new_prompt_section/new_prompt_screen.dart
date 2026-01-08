@@ -23,6 +23,7 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
       Future.microtask(() {
         if (mounted) {
           ref.read(userProfileProvider.notifier).updateUserCredits();
+          AnalyticsService.instance.logScreenView(screenName: 'Prompt Screen');
         }
       });
     });
@@ -50,12 +51,20 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
           onTap: () {
             if (isExpanded) {
               ref.read(isDropdownExpandedProvider.notifier).state = false;
+
             }
           },
           child: Column(
             children: [
               HomeScreenTopBar(
                 onMenuTap: (){
+                  AnalyticsService.instance.logButtonClick(buttonName: 'Hamburger Icon Click');
+                  final analyticsService = ref.read(analyticsServiceProvider);
+                  analyticsService.logCustomEvent(
+                      eventName: 'Hamburger_Icon_clicked',
+                      parameters: {
+                        'screen': 'Prompt_screen',
+                      });
                   _scaffoldKey.currentState?.openDrawer();
                   ref.read(keyboardControllerProvider).hideKeyboard(context);
                 },

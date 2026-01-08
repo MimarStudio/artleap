@@ -1,5 +1,3 @@
-import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
-import 'contionus_button.dart';
 import 'option_card.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
@@ -26,63 +24,51 @@ class OnboardingStepContent extends ConsumerWidget {
     final theme = Theme.of(context);
     final mediaQuery = MediaQuery.of(context);
     final isSmallScreen = mediaQuery.size.width < 600;
-    final safePadding = mediaQuery.padding;
-
     if (currentStep == 0 || currentStep == 1 || currentStep == 2) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
       });
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildStepIndicator(currentStep + 1, theme),
-          const SizedBox(height: 20),
-          Text(
-            stepData.title,
-            style: AppTextstyle.interBold(
-              fontSize: isSmallScreen ? 24.0 : 28.0,
-              color: theme.colorScheme.onSurface,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildStepIndicator(currentStep + 1, theme),
+        const SizedBox(height: 20),
+        Text(
+          stepData.title,
+          style: AppTextstyle.interBold(
+            fontSize: isSmallScreen ? 16.0 : 20.0,
+            color: theme.colorScheme.onSurface,
           ),
-          const SizedBox(height: 8),
-          Text(
-            stepData.subtitle,
-            style: AppTextstyle.interRegular(
-              fontSize: isSmallScreen ? 16.0 : 18.0,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
-            ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          stepData.subtitle,
+          style: AppTextstyle.interRegular(
+            fontSize: isSmallScreen ? 12.0 : 14.0,
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
           ),
-          const SizedBox(height: 24),
-          ListView.builder(
-            itemCount: stepData.options.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemBuilder: (context, index) {
-              final isSelected = index == selectedIndex;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: OptionCard(
-                  title: stepData.options[index],
-                  isSelected: isSelected,
-                  onTap: () => onOptionSelected(index),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 16.0),
-          ContinueButton(
-            isEnabled: selectedIndex != null,
-            onPressed: onContinue,
-            isLastStep: isLastStep,
-          ),
-          SizedBox(height: safePadding.bottom),
-        ],
-      ),
+        ),
+        const SizedBox(height: 20),
+        ListView.builder(
+          itemCount: stepData.options.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemBuilder: (context, index) {
+            final isSelected = index == selectedIndex;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: OptionCard(
+                title: stepData.options[index],
+                isSelected: isSelected,
+                onTap: () => onOptionSelected(index),
+              ),
+            );
+          },
+        ),
+        SizedBox(height: isSmallScreen ? 10 : 14),
+      ],
     );
   }
 

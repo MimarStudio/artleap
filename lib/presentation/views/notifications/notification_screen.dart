@@ -1,15 +1,44 @@
-import 'package:Artleap.ai/ads/banner_ads/banner_ad_widget.dart';
+import 'dart:async';
+import 'dart:math';
 import 'notification_card.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
-class NotificationScreen extends ConsumerWidget {
+class NotificationScreen extends ConsumerStatefulWidget {
   static const routeName = '/notifications_repo';
   const NotificationScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationScreen> createState() => _NotificationScreenState();
+}
+
+class _NotificationScreenState extends ConsumerState<NotificationScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _preloadBannerAd();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _preloadBannerAd();
+    });
+  }
+
+  void _preloadBannerAd() {
+    final centralAdNotifier = ref.read(centralAdManagementProvider.notifier);
+    centralAdNotifier.setWidgetRef(ref);
+    centralAdNotifier.loadBannerAd();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final userId = UserData.ins.userId;
+    final mediaPadding = MediaQuery.of(context).padding;
 
     if (userId == null) {
       return ErrorState(
@@ -25,17 +54,41 @@ class NotificationScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: _buildAppBar(ref, selectionState, notificationsAsync, theme),
-      body: Column(
+      body: Stack(
         children: [
-          if (!selectionState.isSelectionMode)
-            _buildFilterTabs(currentFilter, theme, ref),
-          if (selectionState.isSelectionMode)
-            _buildSelectionActions(ref, selectionState, userId, theme),
-          Expanded(
-            child: _buildNotificationList(ref, selectionState, notificationsAsync, currentFilter, userId, theme),
+          Column(
+            children: [
+              if (!selectionState.isSelectionMode)
+                _buildFilterTabs(currentFilter, theme, ref),
+              if (selectionState.isSelectionMode)
+                _buildSelectionActions(ref, selectionState, userId, theme),
+              Expanded(
+                child: _buildNotificationList(
+                  ref,
+                  selectionState,
+                  notificationsAsync,
+                  currentFilter,
+                  userId,
+                  theme,
+                ),
+              ),
+            ],
           ),
-          const BannerAdWidget(),
-          SizedBox(height: 28)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              color: theme.colorScheme.surface,
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 8,
+                bottom: mediaPadding.bottom,
+              ),
+              child: BannerAdWidget(uniqueScreenKey: '/notification'),
+            ),
+          ),
         ],
       ),
     );
@@ -72,11 +125,15 @@ class NotificationScreen extends ConsumerWidget {
       foregroundColor: theme.colorScheme.onSurface,
       leading: selectionState.isSelectionMode
           ? IconButton(
-        icon: Icon(Icons.close_rounded, color: theme.colorScheme.onSurface),
-        onPressed: () => ref.read(notificationSelectionProvider.notifier).clearSelection(),
+        icon:
+        Icon(Icons.close_rounded, color: theme.colorScheme.onSurface),
+        onPressed: () => ref
+            .read(notificationSelectionProvider.notifier)
+            .clearSelection(),
       )
           : null,
-      actions: _buildAppBarActions(ref, selectionState, notificationsAsync, theme),
+      actions:
+      _buildAppBarActions(ref, selectionState, notificationsAsync, theme),
     );
   }
 
@@ -94,7 +151,8 @@ class NotificationScreen extends ConsumerWidget {
           tooltip: 'Select all',
         ),
         IconButton(
-          icon: Icon(Icons.mark_email_read_rounded, color: theme.colorScheme.primary),
+          icon: Icon(Icons.mark_email_read_rounded,
+              color: theme.colorScheme.primary),
           onPressed: () => _markSelectedAsRead(ref, selectionState),
           tooltip: 'Mark selected as read',
         ),
@@ -107,7 +165,8 @@ class NotificationScreen extends ConsumerWidget {
     }
 
     final filteredUnreadCount = notificationsAsync.maybeWhen(
-      data: (notifications) => _filterNotifications(notifications, ref.read(notificationFilterProvider))
+      data: (notifications) => _filterNotifications(
+          notifications, ref.read(notificationFilterProvider))
           .where((n) => !n.isRead)
           .length,
       orElse: () => 0,
@@ -142,7 +201,8 @@ class NotificationScreen extends ConsumerWidget {
         children: [
           TextButton.icon(
             onPressed: () => _markSelectedAsRead(ref, selectionState),
-            icon: Icon(Icons.mark_email_read_rounded, color: theme.colorScheme.primary),
+            icon: Icon(Icons.mark_email_read_rounded,
+                color: theme.colorScheme.primary),
             label: AppText(
               'Mark Read',
               size: 14,
@@ -165,7 +225,8 @@ class NotificationScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFilterTabs(NotificationFilter currentFilter, ThemeData theme, WidgetRef ref) {
+  Widget _buildFilterTabs(
+      NotificationFilter currentFilter, ThemeData theme, WidgetRef ref) {
     return Container(
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -180,7 +241,9 @@ class NotificationScreen extends ConsumerWidget {
                 filter.displayName,
                 size: 14,
                 weight: FontWeight.w500,
-                color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
+                color: isSelected
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.onSurface,
               ),
               selected: isSelected,
               onSelected: (selected) {
@@ -214,14 +277,19 @@ class NotificationScreen extends ConsumerWidget {
       ThemeData theme,
       ) {
     return notificationsAsync.when(
-      loading: () => const LoadingState(useShimmer: true, shimmerItemCount: 5),
-      error: (error, stack) => ErrorState(
-        message: 'Failed to load notifications',
-        onRetry: () => _loadNotifications(ref),
-        icon: Icons.notifications_off_rounded,
-      ),
+      loading: () {
+        return const LoadingState(useShimmer: true, shimmerItemCount: 5);
+      },
+      error: (error, stack) {
+        return ErrorState(
+          message: 'Failed to load notifications',
+          onRetry: () => _loadNotifications(ref),
+          icon: Icons.notifications_off_rounded,
+        );
+      },
       data: (allNotifications) {
-        final filteredNotifications = _filterNotifications(allNotifications, currentFilter);
+        final filteredNotifications =
+        _filterNotifications(allNotifications, currentFilter);
 
         if (filteredNotifications.isEmpty) {
           return EmptyState(
@@ -237,19 +305,23 @@ class NotificationScreen extends ConsumerWidget {
           color: theme.colorScheme.onPrimary,
           onRefresh: () => _loadNotifications(ref),
           child: ListView.separated(
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 8),
+            padding:
+            const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80), // Increased bottom padding for banner ad
             itemCount: filteredNotifications.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final notification = filteredNotifications[index];
               return NotificationCard(
                 notification: notification,
-                isSelected: selectionState.selectedIds.contains(notification.id),
+                isSelected:
+                selectionState.selectedIds.contains(notification.id),
                 isSelectionMode: selectionState.isSelectionMode,
-                onTap: () => _handleNotificationTap(ref, notification, userId,context),
+                onTap: () =>
+                    _handleNotificationTap(ref, notification, userId, context),
                 onLongPress: () => _toggleSelection(ref, notification.id),
                 onMarkAsRead: () => _markAsRead(ref, notification.id, userId),
-                onDelete: () => _deleteNotification(ref, notification.id, userId),
+                onDelete: () =>
+                    _deleteNotification(ref, notification.id, userId),
               );
             },
           ),
@@ -258,7 +330,8 @@ class NotificationScreen extends ConsumerWidget {
     );
   }
 
-  List<AppNotification> _filterNotifications(List<AppNotification> notifications, NotificationFilter filter) {
+  List<AppNotification> _filterNotifications(
+      List<AppNotification> notifications, NotificationFilter filter) {
     if (filter == NotificationFilter.all) return notifications;
 
     return notifications.where((notification) {
@@ -267,11 +340,16 @@ class NotificationScreen extends ConsumerWidget {
       final String effectiveType = dataType ?? mainType;
 
       switch (filter) {
-        case NotificationFilter.like: return effectiveType == 'like';
-        case NotificationFilter.comment: return effectiveType == 'comment';
-        case NotificationFilter.follow: return effectiveType == 'follow';
-        case NotificationFilter.alert: return effectiveType == 'alert';
-        default: return true;
+        case NotificationFilter.like:
+          return effectiveType == 'like';
+        case NotificationFilter.comment:
+          return effectiveType == 'comment';
+        case NotificationFilter.follow:
+          return effectiveType == 'follow';
+        case NotificationFilter.alert:
+          return effectiveType == 'alert';
+        default:
+          return true;
       }
     }).toList();
   }
@@ -290,14 +368,16 @@ class NotificationScreen extends ConsumerWidget {
     }
   }
 
-  void _selectAll(WidgetRef ref, AsyncValue<List<AppNotification>> notificationsAsync) {
+  void _selectAll(
+      WidgetRef ref, AsyncValue<List<AppNotification>> notificationsAsync) {
     notificationsAsync.whenData((notifications) {
       final allIds = notifications.map((n) => n.id).toList();
       ref.read(notificationSelectionProvider.notifier).selectAll(allIds);
     });
   }
 
-  Future<void> _markSelectedAsRead(WidgetRef ref, NotificationSelectionState selectionState) async {
+  Future<void> _markSelectedAsRead(
+      WidgetRef ref, NotificationSelectionState selectionState) async {
     final userId = UserData.ins.userId;
     if (userId == null || selectionState.selectedIds.isEmpty) return;
 
@@ -308,7 +388,8 @@ class NotificationScreen extends ConsumerWidget {
     ref.read(notificationSelectionProvider.notifier).clearSelection();
   }
 
-  Future<void> _deleteSelected(WidgetRef ref, NotificationSelectionState selectionState) async {
+  Future<void> _deleteSelected(
+      WidgetRef ref, NotificationSelectionState selectionState) async {
     final userId = UserData.ins.userId;
     if (userId == null || selectionState.selectedIds.isEmpty) return;
 
@@ -319,20 +400,27 @@ class NotificationScreen extends ConsumerWidget {
     ref.read(notificationSelectionProvider.notifier).clearSelection();
   }
 
-  Future<void> _deleteNotification(WidgetRef ref, String notificationId, String userId) async {
+  Future<void> _deleteNotification(
+      WidgetRef ref, String notificationId, String userId) async {
     try {
-      await ref.read(notificationProvider(userId).notifier).deleteNotification(notificationId, userId);
+      await ref
+          .read(notificationProvider(userId).notifier)
+          .deleteNotification(notificationId, userId);
     } catch (e) {
       appErrorSnackBar('Error', 'Failed to delete notification');
     }
   }
 
   void _toggleSelection(WidgetRef ref, String notificationId) {
-    ref.read(notificationSelectionProvider.notifier).toggleSelection(notificationId);
+    ref
+        .read(notificationSelectionProvider.notifier)
+        .toggleSelection(notificationId);
   }
 
-  void _handleNotificationTap(WidgetRef ref, AppNotification notification, String userId,BuildContext context) {
+  void _handleNotificationTap(WidgetRef ref, AppNotification notification,
+      String userId, BuildContext context) {
     final selectionState = ref.read(notificationSelectionProvider);
+    final centralAdNotifier = ref.read(centralAdManagementProvider.notifier);
 
     if (selectionState.isSelectionMode) {
       _toggleSelection(ref, notification.id);
@@ -340,6 +428,14 @@ class NotificationScreen extends ConsumerWidget {
       if (!notification.isRead) {
         _markAsRead(ref, notification.id, userId);
       }
+
+      final shouldShowAd = _shouldShowInterstitialAd();
+      if (shouldShowAd &&
+          centralAdNotifier.isAdLoaded('interstitial') &&
+          centralAdNotifier.canShowAd()) {
+        centralAdNotifier.showInterstitialAd();
+      }
+
       Navigator.pushNamed(
         context,
         NotificationDetailScreen.routeName,
@@ -348,37 +444,57 @@ class NotificationScreen extends ConsumerWidget {
     }
   }
 
+  bool _shouldShowInterstitialAd() {
+    final random = Random();
+    return random.nextInt(3) == 0;
+  }
+
   void _markAsRead(WidgetRef ref, String notificationId, String userId) {
     ref.read(notificationProvider(userId).notifier).markAsRead(notificationId);
   }
 
   IconData _getEmptyStateIcon(NotificationFilter filter) {
     switch (filter) {
-      case NotificationFilter.like: return Icons.favorite_border_rounded;
-      case NotificationFilter.comment: return Icons.chat_bubble_outline_rounded;
-      case NotificationFilter.follow: return Icons.person_add_alt_1_rounded;
-      case NotificationFilter.alert: return Icons.warning_amber_rounded;
-      default: return Icons.notifications_none_rounded;
+      case NotificationFilter.like:
+        return Icons.favorite_border_rounded;
+      case NotificationFilter.comment:
+        return Icons.chat_bubble_outline_rounded;
+      case NotificationFilter.follow:
+        return Icons.person_add_alt_1_rounded;
+      case NotificationFilter.alert:
+        return Icons.warning_amber_rounded;
+      default:
+        return Icons.notifications_none_rounded;
     }
   }
 
   String _getEmptyStateTitle(NotificationFilter filter) {
     switch (filter) {
-      case NotificationFilter.like: return 'No Like Notifications';
-      case NotificationFilter.comment: return 'No Comment Notifications';
-      case NotificationFilter.follow: return 'No Follow Notifications';
-      case NotificationFilter.alert: return 'No Alert Notifications';
-      default: return 'No Notifications Yet';
+      case NotificationFilter.like:
+        return 'No Like Notifications';
+      case NotificationFilter.comment:
+        return 'No Comment Notifications';
+      case NotificationFilter.follow:
+        return 'No Follow Notifications';
+      case NotificationFilter.alert:
+        return 'No Alert Notifications';
+      default:
+        return 'No Notifications Yet';
     }
   }
 
   String _getEmptyStateSubtitle(NotificationFilter filter) {
     switch (filter) {
-      case NotificationFilter.like: return 'When someone likes your content, it will appear here';
-      case NotificationFilter.comment: return 'Comments on your posts will show up here';
-      case NotificationFilter.follow: return 'New followers will be displayed here';
-      case NotificationFilter.alert: return 'Important alerts and updates will appear here';
-      default: return 'When you receive notifications, they will appear here';
+      case NotificationFilter.like:
+        return 'When someone likes your content, it will appear here';
+      case NotificationFilter.comment:
+        return 'Comments on your posts will show up here';
+      case NotificationFilter.follow:
+        return 'New followers will be displayed here';
+      case NotificationFilter.alert:
+        return 'Important alerts and updates will appear here';
+      default:
+        return 'When you receive notifications, they will appear here';
     }
   }
 }
