@@ -1,4 +1,3 @@
-import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
 import '../profile_screen/profile_screen_widgets/my_creations_widget.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
@@ -34,7 +33,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
       AnalyticsService.instance.logScreenView(screenName: 'profile screen');
 
-      ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+      ref.read(centralAdManagementProvider.notifier).loadInterstitialAd();
     });
     _adListener = ref.listenManual<InterstitialAdState>(
       interstitialAdStateProvider,
@@ -166,6 +165,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                     color: theme.colorScheme.onPrimary),
                                 tooltip: "Saved Images",
                                 onPressed: () {
+                                  AnalyticsService.instance.logButtonClick(buttonName: 'Profile Saved Images Button');
+                                  final analyticsService = ref.read(analyticsServiceProvider);
+                                  analyticsService.logCustomEvent(
+                                      eventName: 'Saved_Icon_clicked',
+                                      parameters: {
+                                        'screen': 'Profile_screen',
+                                      });
                                   _handleNavigation('saved-images-screens');
                                 },
                               ),
@@ -181,6 +187,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                   ),
                                 ),
                                 onPressed: () {
+                                  AnalyticsService.instance.logButtonClick(buttonName: 'Profile Notification Button');
+                                  final analyticsService = ref.read(analyticsServiceProvider);
+                                  analyticsService.logCustomEvent(
+                                      eventName: 'Notification_Icon_clicked',
+                                      parameters: {
+                                        'screen': 'Profile_screen',
+                                      });
                                   _handleNavigation(
                                       NotificationScreen.routeName);
                                 },
@@ -192,7 +205,16 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                   size: 26,
                                 ),
                                 tooltip: "Logout",
-                                onPressed: () => _showLogoutDialog(context),
+                                onPressed: (){
+                                  _showLogoutDialog(context);
+                                  AnalyticsService.instance.logButtonClick(buttonName: 'Profile Logout Button');
+                                  final analyticsService = ref.read(analyticsServiceProvider);
+                                  analyticsService.logCustomEvent(
+                                      eventName: 'Logout_Icon_clicked',
+                                      parameters: {
+                                        'screen': 'Profile_screen',
+                                      });
+                                },
                               ),
                             ],
                           );

@@ -111,7 +111,13 @@ class PromptInputRedesign extends ConsumerWidget {
                       PromptEnhancerButton(
                         promptController: ref.watch(generateImageProvider).promptTextController,
                         onEnhanced: () {
-                          // Optional callback
+                          AnalyticsService.instance.logButtonClick(buttonName: 'prompt enhancer button');
+                          final analyticsService = ref.read(analyticsServiceProvider);
+                          analyticsService.logCustomEvent(
+                              eventName: 'Prompt_enhancer_button_clicked',
+                              parameters: {
+                                'screen': 'Prompt_screen',
+                              });
                         },
                       ),
                     ],

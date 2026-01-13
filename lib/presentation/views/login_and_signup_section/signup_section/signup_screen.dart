@@ -79,6 +79,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         title: "Sign Up",
                         color: AppColors.indigo,
                         onpress: () {
+                          AnalyticsService.instance.logButtonClick(buttonName: 'SignUp Button');
                           ref.read(authprovider).signUpWithEmail();
                         },
                       ),

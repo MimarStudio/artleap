@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/ads/native_ads/native_ad_post_widget.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 enum ItemType { post, ad }
@@ -5,8 +6,13 @@ enum ItemType { post, ad }
 class AdItem {
   final ItemType type;
   final int index;
+  final bool isMediumAd; // Add this to specify ad type
 
-  AdItem({required this.type, required this.index});
+  AdItem({
+    required this.type,
+    required this.index,
+    this.isMediumAd = true, // Default to medium ads for community feed
+  });
 }
 
 class CommunityFeedWidget extends ConsumerStatefulWidget {
@@ -22,7 +28,7 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
   final _adPositions = <int>{};
   final _itemKeys = <String, GlobalKey>{};
 
-  static const int _adFrequency = 4;
+  static const int _adFrequency = 3; // Changed to show ad after every 3 posts
   static const double _scrollThreshold = 300.0;
   static const double _adLoadThreshold = 0.7;
 
@@ -44,7 +50,8 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
       }
 
       if (RemoteConfigService.instance.showNativeAds) {
-        _nativeAdNotifier.loadMultipleAds();
+        // Load multiple medium ads for the feed
+        _nativeAdNotifier.loadMultipleNativeAds();
       }
     });
 
@@ -72,12 +79,13 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
     }
 
     final adState = ref.read(nativeAdProvider);
-    if (adState.nativeAds.isEmpty) {
+    if (adState.mediumNativeAds.isEmpty) {
       return posts;
     }
 
     _adPositions.clear();
 
+    // Calculate ad positions: after every 3 posts
     final int adCount = (posts.length / _adFrequency).floor();
     for (int i = 1; i <= adCount; i++) {
       _adPositions.add(i * _adFrequency);
@@ -89,8 +97,13 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
     for (int i = 0; i < posts.length; i++) {
       itemsWithAds.add(posts[i]);
 
-      if (_adPositions.contains(i + 1) && adIndex < adState.nativeAds.length) {
-        itemsWithAds.add(AdItem(type: ItemType.ad, index: adIndex++));
+      // Insert ad after every 3 posts (at positions 3, 6, 9, etc.)
+      if (_adPositions.contains(i + 1) && adIndex < adState.mediumNativeAds.length) {
+        itemsWithAds.add(AdItem(
+          type: ItemType.ad,
+          index: adIndex++,
+          isMediumAd: true,
+        ));
       }
     }
 
@@ -166,7 +179,7 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
         onRefresh: () async {
           await homeProvider.refreshUserCreations();
           if (RemoteConfigService.instance.showNativeAds) {
-            _nativeAdNotifier.loadMultipleAds();
+            _nativeAdNotifier.loadMultipleNativeAds();
           }
         },
         child: _buildListView(itemsWithAds, homeProvider, constraints),
@@ -215,10 +228,11 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
     return NativeAdPostWidget(
       key: _itemKeys[key],
       adIndex: item.index,
+      isMediumAd: item.isMediumAd,
       onAdDisposed: () {
         SchedulerBinding.instance.addPostFrameCallback((_) {
           if (mounted && RemoteConfigService.instance.showNativeAds) {
-            _nativeAdNotifier.loadMultipleAds();
+            _nativeAdNotifier.loadMediumNativeAds();
           }
         });
       },

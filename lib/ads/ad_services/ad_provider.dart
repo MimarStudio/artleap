@@ -66,3 +66,5 @@ final interstitialIntervalProvider = Provider<int>((ref) {
 });
 
 final isFullscreenAdShowingProvider = StateProvider<bool>((ref) => false);
+
+final routeObserverProvider = Provider((ref) => RouteObserver<PageRoute>());

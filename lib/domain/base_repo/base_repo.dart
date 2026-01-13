@@ -5,14 +5,9 @@ import 'package:Artleap.ai/domain/api_repos_impl/prompt_enhance_repo_impl.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 mixin BaseRepo {
-  final ReqResRepo _reqresRepo = ReqResRepoImpl();
-  ReqResRepo get reqresRepo => _reqresRepo;
 
   final GenerateImg2ImgRepo _generateImgToImgRepo = GenerateImg2ImgImpl();
   GenerateImg2ImgRepo get generateImgToImgRepo => _generateImgToImgRepo;
-
-  final LoadModelsListRepo _modelsListRepo = LoadModelsListImpl();
-  LoadModelsListRepo get modelListRepo => _modelsListRepo;
 
   final FavouritRepo _favouriteRepo = FavouriteRepoImpl();
   FavouritRepo get favouriteRepo => _favouriteRepo;

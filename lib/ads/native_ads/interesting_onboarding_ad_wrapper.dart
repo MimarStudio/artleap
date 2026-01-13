@@ -16,7 +16,8 @@ class _InterestOnboardingScreenWrapperState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(nativeAdProvider.notifier).loadMultipleAds();
+      ref.read(centralAdManagementProvider.notifier).loadSmallNativeAds();
+      ref.read(centralAdManagementProvider.notifier).loadBannerAd();
     });
   }
 

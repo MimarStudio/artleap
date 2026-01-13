@@ -62,6 +62,7 @@ class PostActions extends ConsumerWidget {
                 theme: theme,
                 image: image,
                 context: context,
+                ref: ref,
               ),
               const Spacer(),
               _SaveButton(
@@ -97,6 +98,13 @@ class _LikeButton extends ConsumerWidget {
   void _toggleLike(WidgetRef ref) async {
     try {
       await ref.read(likeProvider(imageId).notifier).toggleLike();
+      AnalyticsService.instance.logButtonClick(buttonName: 'Like button(Community Post Page)');
+      final analyticsService = ref.read(analyticsServiceProvider);
+      analyticsService.logCustomEvent(
+          eventName: 'like_button_clicked(Community Post Page)',
+          parameters: {
+            'screen': 'screen_after_result',
+          });
       ref.invalidate(likeCountProvider(imageId));
     } catch (e) {
       appSnackBar('Error', 'Failed to update like: $e', backgroundColor: AppColors.red);
@@ -122,6 +130,7 @@ class _CommentButton extends ConsumerWidget {
   final ThemeData theme;
   final BuildContext context;
   final dynamic image;
+  final WidgetRef ref;
 
   const _CommentButton({
     required this.imageId,
@@ -129,9 +138,17 @@ class _CommentButton extends ConsumerWidget {
     required this.theme,
     required this.context,
     required this.image,
+    required this.ref,
   });
 
   void _showComments() {
+    AnalyticsService.instance.logButtonClick(buttonName: 'Comment button(Community Post Page)');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+        eventName: 'comment_button_clicked(Community Post Page)',
+        parameters: {
+          'screen': 'community_post_page',
+        });
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -170,6 +187,13 @@ class _SaveButton extends ConsumerWidget {
   void _toggleSave(WidgetRef ref) async {
     try {
       await ref.read(saveProvider.notifier).toggleSave(imageId);
+      AnalyticsService.instance.logButtonClick(buttonName: 'Save button(Community Post Page)');
+      final analyticsService = ref.read(analyticsServiceProvider);
+      analyticsService.logCustomEvent(
+          eventName: 'saved_image_button_clicked(Community Post Page)',
+          parameters: {
+            'screen': 'community_post_page',
+          });
       appSnackBar('Alert', "${isSaved ? 'Removed from saved collection' : 'Saved to your collection'}");
     } catch (e) {
       appSnackBar('Error', "Failed to update save: $e");

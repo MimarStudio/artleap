@@ -42,7 +42,7 @@ class _PromptCreateScreenRedesignState
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!_isMounted) return;
       try {
-        AnalyticsService.instance.logScreenView(screenName: 'generating screen');
+        AnalyticsService.instance.logScreenView(screenName: 'Prompt Create Screen');
         await AdHelper.preloadRewardedAd(ref);
         if (!_isMounted) return;
 
@@ -178,14 +178,20 @@ class _PromptCreateScreenRedesignState
     }
 
     AnalyticsService.instance.logButtonClick(buttonName: 'Generate button event');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+        eventName: 'Generate_button_clicked',
+        parameters: {
+          'screen': 'Prompt_screen',
+        });
     ref.read(isLoadingProvider.notifier).state = true;
     _animationController.forward();
     bool success = false;
 
     if (isTextToImage) {
-      success =
-      await ref.read(generateImageProvider.notifier).generateTextToImage();
-      if (!success) {success = await ref.read(generateImageProvider.notifier).generateLeonardoTxt2Image();
+      success = await ref.read(generateImageProvider.notifier).generateTextToImage();
+      if (!success) {
+        success = await ref.read(generateImageProvider.notifier).generateLeonardoTxt2Image();
       }
     } else {
       await ref.read(generateImageProvider.notifier).generateImgToImg();
@@ -197,6 +203,7 @@ class _PromptCreateScreenRedesignState
     _animationController.reverse();
 
     if (success && _isMounted) {
+      ref.read(centralAdManagementProvider.notifier).loadSmallNativeAds();
       Future.microtask(() {
         ref.read(generateImageProvider.notifier).clearPrompt();
         ref.read(promptEnhancerProvider.notifier).resetEnhancer();
@@ -379,10 +386,13 @@ class _PromptCreateScreenRedesignState
                       const SizedBox(height: 16),
                       ImageControlsRedesign(
                         onImageSelected: () {
-                          AnalyticsService.instance.logButtonClick(
-                            buttonName:
-                            'picking image from gallery button event',
-                          );
+                          AnalyticsService.instance.logButtonClick(buttonName: 'Add Image Button');
+                          final analyticsService = ref.read(analyticsServiceProvider);
+                          analyticsService.logCustomEvent(
+                              eventName: 'Add_Image_button_clicked',
+                              parameters: {
+                                'screen': 'Prompt_screen',
+                              });
                         },
                         isPremiumUser: !isFreePlan,
                       ),

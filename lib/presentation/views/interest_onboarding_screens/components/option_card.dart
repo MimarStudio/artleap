@@ -15,64 +15,40 @@ class OptionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      padding: const EdgeInsets.symmetric(vertical: 3.0),
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
           decoration: BoxDecoration(
             border: Border.all(
               color: isSelected
                   ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
-              width: isSelected ? 2.0 : 1.5,
+                  : theme.colorScheme.outline.withOpacity(0.3),
+              width: isSelected ? 1.2 : 0.8,
             ),
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(8.0),
             color: isSelected
-                ? theme.colorScheme.primary.withOpacity(0.05)
+                ? theme.colorScheme.primary.withOpacity(0.04)
                 : theme.colorScheme.surface,
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    )
-                  ]
-                : [
-                    BoxShadow(
-                      color: theme.colorScheme.shadow.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    )
-                  ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
                   title,
                   style: AppTextstyle.interMedium(
-                    fontSize: 16.0,
+                    fontSize: 14.0,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
               ),
               if (isSelected)
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.check,
-                    size: 16,
-                    color: theme.colorScheme.onPrimary,
-                  ),
+                Icon(
+                  Icons.check_circle,
+                  size: 18,
+                  color: theme.colorScheme.primary,
                 ),
             ],
           ),

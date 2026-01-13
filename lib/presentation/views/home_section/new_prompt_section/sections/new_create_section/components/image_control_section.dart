@@ -118,6 +118,13 @@ class ImageControlsRedesign extends ConsumerWidget {
               onTap: () {
                 ref.read(generateImageProvider.notifier).selectedImageNumber = number;
                 ref.read(keyboardControllerProvider).hideKeyboard(context);
+                AnalyticsService.instance.logButtonClick(buttonName: 'Number of Images');
+                final analyticsService = ref.read(analyticsServiceProvider);
+                analyticsService.logCustomEvent(
+                    eventName: 'Number_of_Images_Selected',
+                    parameters: {
+                      'screen': 'Prompt_screen',
+                    });
               },
               credits: ref.watch(generateImageProvider).images.isEmpty
                   ? number * 2
@@ -158,6 +165,13 @@ class ImageControlsRedesign extends ConsumerWidget {
                 onTap: () {
                   ref.read(generateImageProvider.notifier).aspectRatio = ratio['value'];
                   ref.read(keyboardControllerProvider).hideKeyboard(context);
+                  AnalyticsService.instance.logButtonClick(buttonName: 'Aspect Ratio Button');
+                  final analyticsService = ref.read(analyticsServiceProvider);
+                  analyticsService.logCustomEvent(
+                      eventName: 'Number_of_Ratio_selected',
+                      parameters: {
+                        'screen': 'Prompt_screen',
+                      });
                   },
                 isAspectRatio: true,
                 aspectRatio: ratio['value'],
@@ -195,7 +209,16 @@ class ImageControlsRedesign extends ConsumerWidget {
                 ),
               ),
               TextButton(
-                onPressed: () => showStylesBottomSheet(context, ref),
+                onPressed: () {
+                  showStylesBottomSheet(context, ref);
+                  AnalyticsService.instance.logButtonClick(buttonName: 'Image Style Button');
+                  final analyticsService = ref.read(analyticsServiceProvider);
+                  analyticsService.logCustomEvent(
+                      eventName: 'More_Image_Styles_button_clicked',
+                      parameters: {
+                        'screen': 'Prompt_screen',
+                      });
+                  },
                 child: Text(
                   "View All",
                   style: AppTextstyle.interMedium(

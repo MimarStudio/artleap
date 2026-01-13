@@ -5,6 +5,8 @@ class NotHaveAccountText extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final analyticsService = ref.read(analyticsServiceProvider);
+
     return Column(
       children: [
         RichText(
@@ -19,6 +21,12 @@ class NotHaveAccountText extends ConsumerWidget {
                       color: AppColors.indigo, fontSize: 13),
                   recognizer: TapGestureRecognizer()
                     ..onTap = () {
+                      analyticsService.logCustomEvent(
+                        eventName: 'signUp_button_clicked',
+                        parameters: {
+                          'screen': 'SingUp_screen',
+                        },
+                      );
                       Navigation.pushNamed(SignUpScreen.routeName);
                     })
             ])),

@@ -35,6 +35,7 @@ class HelpScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final isLoading = ref.watch(helpScreenProvider);
     final notifier = ref.read(helpScreenProvider.notifier);
+    AnalyticsService.instance.logButtonClick(buttonName: 'Help Screen');
 
     return Scaffold(
       appBar: AppBar(
@@ -98,8 +99,9 @@ class HelpScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _launchEmail(
-      HelpScreenNotifier notifier, BuildContext context) async {
+  Future<void> _launchEmail(HelpScreenNotifier notifier, BuildContext context) async {
+    AnalyticsService.instance.logButtonClick(buttonName: 'Contact Support');
+
     if (notifier.state) return;
 
     notifier.setLoading(true);

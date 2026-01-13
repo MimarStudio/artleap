@@ -2,10 +2,6 @@ import 'package:dio/dio.dart';
 import 'api_response.dart';
 
 class HandlingResponse {
-  /// Converts an HTTP [response] into a typed [ApiResponse].
-  /// - Any 2xx status is considered success (200..299), incl. 201/204.
-  /// - Optionally parses the payload via [fromJson].
-  /// - Extracts a useful error message when possible.
   static ApiResponse<T> returnResponse<T>(
       Response response, {
         T Function(dynamic)? fromJson,
@@ -13,22 +9,18 @@ class HandlingResponse {
     final int code = response.statusCode ?? 0;
     final dynamic data = response.data;
 
-    // ✅ Success for ANY 2xx
     if (code >= 200 && code < 300) {
-      // 204 No Content -> still return completed with null/empty payload
       final T parsed =
       fromJson != null ? fromJson(data) : (data is T ? data : (null as T));
       return ApiResponse<T>.completed(parsed);
     }
 
-    // 🤝 Optional: treat 409 as success if backend returns an existing user payload
     if (code == 409 && _hasUserPayload(data)) {
       final T parsed =
       fromJson != null ? fromJson(data) : (data is T ? data : (null as T));
       return ApiResponse<T>.completed(parsed);
     }
 
-    // Fallbacks for common error codes, with message extraction
     final String msg = _extractMessage(data) ?? _defaultMessage(code);
 
     switch (code) {
@@ -53,9 +45,7 @@ class HandlingResponse {
     }
   }
 
-  /// Standardized exception -> ApiResponse mapping with clearer messages.
   static ApiResponse<T> returnException<T>(DioException exception) {
-    // Try to surface server-provided message if available
     final String? serverMsg = _extractMessage(exception.response?.data);
 
     switch (exception.type) {
@@ -72,7 +62,6 @@ class HandlingResponse {
       case DioExceptionType.connectionError:
         return ApiResponse<T>.noInternet('No internet connection');
       case DioExceptionType.badResponse:
-      // Delegate to returnResponse-style handling if we do have a response
         final res = exception.response;
         if (res != null) {
           return returnResponse<T>(res);
@@ -83,11 +72,8 @@ class HandlingResponse {
     }
   }
 
-  // ---------- helpers ----------
-
   static String? _extractMessage(dynamic data) {
     if (data is Map) {
-      // common API patterns
       if (data['message'] is String && (data['message'] as String).isNotEmpty) {
         return data['message'] as String;
       }

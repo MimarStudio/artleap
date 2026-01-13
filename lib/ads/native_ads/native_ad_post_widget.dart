@@ -2,11 +2,13 @@ import 'package:Artleap.ai/shared/route_export.dart';
 
 class NativeAdPostWidget extends ConsumerWidget {
   final int adIndex;
+  final bool isMediumAd;
   final VoidCallback onAdDisposed;
 
   const NativeAdPostWidget({
     super.key,
     required this.adIndex,
+    required this.isMediumAd,
     required this.onAdDisposed,
   });
 
@@ -19,26 +21,33 @@ class NativeAdPostWidget extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    if (adState.isLoading && adState.nativeAds.isEmpty) {
+    final List<NativeAd> targetAds = isMediumAd ? adState.mediumNativeAds : adState.smallNativeAds;
+    final bool isLoading = isMediumAd ? adState.isLoadingMedium : adState.isLoadingSmall;
+    final bool isLoaded = isMediumAd ? adState.isMediumLoaded : adState.isSmallLoaded;
+
+    if (isLoading && targetAds.isEmpty) {
       return _buildAdPlaceholder(context, theme);
     }
 
-    if (adIndex >= adState.nativeAds.length || adState.nativeAds.isEmpty) {
+    if (adIndex >= targetAds.length || targetAds.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final isAdReady = ref.read(nativeAdProvider.notifier).isAdReady(adIndex);
+    final isAdReady = isMediumAd
+        ? ref.read(nativeAdProvider.notifier).isMediumAdReady(adIndex)
+        : ref.read(nativeAdProvider.notifier).isSmallAdReady(adIndex);
+
     if (!isAdReady) {
       return _buildAdPlaceholder(context, theme);
     }
 
-    final nativeAd = adState.nativeAds[adIndex];
+    final nativeAd = targetAds[adIndex];
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isMediumAd ? 16 : 8),
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.shadow.withOpacity(0.1),
@@ -58,9 +67,9 @@ class NativeAdPostWidget extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: theme.colorScheme.primary.withOpacity(0.08),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(isMediumAd ? 16 : 8),
+                topRight: Radius.circular(isMediumAd ? 16 : 8),
               ),
               border: Border(
                 bottom: BorderSide(
@@ -93,7 +102,12 @@ class NativeAdPostWidget extends ConsumerWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   onPressed: () {
-                    ref.read(nativeAdProvider.notifier).safeDisposeAds();
+                    // Dispose only the specific ad type
+                    if (isMediumAd) {
+                      ref.read(nativeAdProvider.notifier).disposeMediumAds();
+                    } else {
+                      ref.read(nativeAdProvider.notifier).disposeSmallAds();
+                    }
                     onAdDisposed();
                   },
                   padding: EdgeInsets.zero,
@@ -103,7 +117,7 @@ class NativeAdPostWidget extends ConsumerWidget {
             ),
           ),
           Container(
-            height: 400,
+            height: isMediumAd ? 400 : 200, // Adjust height based on ad type
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             child: AdWidget(ad: nativeAd),
@@ -148,7 +162,7 @@ class NativeAdPostWidget extends ConsumerWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isMediumAd ? 16 : 8), // Adjust based on ad type
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.shadow.withOpacity(0.1),
@@ -161,7 +175,7 @@ class NativeAdPostWidget extends ConsumerWidget {
           width: 1,
         ),
       ),
-      height: 400,
+      height: isMediumAd ? 400 : 200, // Adjust height based on ad type
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

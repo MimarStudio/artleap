@@ -77,4 +77,17 @@ class AppApiPaths {
 
 
   static const String enhancePrompt = "/enhance-prompt";
+
+  static const String recordClick = '/clicks/record';
+  static const String getBatchCounters = '/clicks/batch';
+  static const String getUserStats = '/clicks/user';
+
+  static const String submitFeedback = 'feedback/submit';
+  static const String getFeedbackList = 'feedback';
+  static const String getFeedbackById = 'feedback';
+  static const String updateFeedback = 'feedback';
+  static const String deleteFeedback = 'feedback';
+  static const String addUpvote = 'feedback';
+  static const String getUserFeedback = 'feedback/user';
+  static const String getFeedbackStats = 'feedback/stats';
 }

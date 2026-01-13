@@ -19,6 +19,7 @@ class _PersonalInformationScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      AnalyticsService.instance.logScreenView(screenName: 'Personal Information Screen');
       ref.read(userProfileProvider.notifier).getUserProfileData(UserData.ins.userId ?? "");
     });
   }
@@ -61,7 +62,7 @@ class _PersonalInformationScreenState
             child: Column(
               children: [
                 if (isLoading) _buildLoadingState(theme),
-                if (!isLoading && user != null) ...[
+                if (!isLoading) ...[
                   StatsCard(
                     followers: user.followers.length,
                     following: user.following.length,

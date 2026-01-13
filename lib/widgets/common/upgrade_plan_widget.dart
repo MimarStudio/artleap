@@ -1,16 +1,22 @@
-import 'package:Artleap.ai/shared/constants/app_assets.dart';
-import 'package:flutter/material.dart';
+import '../../shared/route_export.dart';
 
-class UpgradeToProBanner extends StatelessWidget {
+class UpgradeToProBanner extends ConsumerWidget {
   const UpgradeToProBanner({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () {
+          AnalyticsService.instance.logButtonClick(buttonName: 'Upgrade to Pro Button(Drawer)');
+          final analyticsService = ref.read(analyticsServiceProvider);
+          analyticsService.logCustomEvent(
+              eventName: 'Upgrade_to_Pro_Button(Drawer)',
+              parameters: {
+                'screen': 'drawer',
+              });
           Navigator.of(context).pushNamed("choose_plan_screen");
         },
         child: Container(

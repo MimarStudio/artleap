@@ -1,4 +1,3 @@
-import 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_provider.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class FavouritesScreen extends ConsumerStatefulWidget {
@@ -17,7 +16,9 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+      ref.read(centralAdManagementProvider.notifier).loadInterstitialAd();
+      ref.read(nativeAdProvider.notifier).loadSmallNativeAds();
+      AnalyticsService.instance.logScreenView(screenName: 'Favourite Screen');
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted && !_adShown) {
           _showInterstitialAd();
@@ -31,12 +32,12 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen> {
 
     if (adState.isLoaded) {
       final didShow = await ref
-          .read(interstitialAdStateProvider.notifier)
+          .read(centralAdManagementProvider.notifier)
           .showInterstitialAd();
 
       if (didShow) {
         _adShown = true;
-        ref.read(interstitialAdStateProvider.notifier).loadInterstitialAd();
+        ref.read(centralAdManagementProvider.notifier).loadInterstitialAd();
       }
     }
   }
@@ -46,6 +47,7 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen> {
     final theme = Theme.of(context);
     final favouriteState = ref.watch(favouriteProvider);
     final size = MediaQuery.of(context).size;
+    final mediaPadding = MediaQuery.of(context).padding;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.onSurface,
@@ -68,53 +70,82 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: AppBackgroundWidget(
-        widget: RefreshIndicator(
-          backgroundColor: theme.colorScheme.primary,
-          color: theme.colorScheme.onPrimary,
-          onRefresh: () async {
-            try {
-              await ref.read(favouriteProvider).getUserFav(UserData.ins.userId!);
-            } catch (e) {
-              debugPrint('Refresh error: $e');
-            }
-          },
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeaderSection(theme, favouriteState),
-                      const SizedBox(height: 24),
-                      ResultsTextDropDownWidget(),
-                    ],
-                  ),
+      body: Stack(
+        children: [
+          IgnorePointer(
+            ignoring: false,
+            child: AppBackgroundWidget(
+              widget: RefreshIndicator(
+                backgroundColor: theme.colorScheme.primary,
+                color: theme.colorScheme.onPrimary,
+                onRefresh: () async {
+                  try {
+                    await ref.read(favouriteProvider).getUserFav(UserData.ins.userId!);
+                  } catch (e) {
+                    debugPrint('Refresh error: $e');
+                  }
+                },
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding:
+                        const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildHeaderSection(theme, favouriteState),
+                            const SizedBox(height: 24),
+                            ResultsTextDropDownWidget(),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (favouriteState.isLoading)
+                      SliverToBoxAdapter(
+                        child: _buildLoadingState(size, theme),
+                      )
+                    else if (favouriteState.usersFavourites == null ||
+                        favouriteState.usersFavourites!.favorites.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: mediaPadding.bottom + 110),
+                          child: _buildEmptyState(size, theme),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: ResultContainerWidget(
+                          data: favouriteState.usersFavourites!.favorites,
+                        ),
+                      ),
+                    SliverToBoxAdapter(
+                      child: SizedBox(height: mediaPadding.bottom + 120),
+                    ),
+                  ],
                 ),
               ),
-              if (favouriteState.isLoading)
-                SliverToBoxAdapter(
-                  child: _buildLoadingState(size, theme),
-                )
-              else if (favouriteState.usersFavourites == null ||
-                  favouriteState.usersFavourites!.favorites.isEmpty)
-                SliverFillRemaining(
-                  child: _buildEmptyState(size, theme),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  sliver: ResultContainerWidget(
-                    data: favouriteState.usersFavourites!.favorites,
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              color: theme.colorScheme.surface,
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 8,
+                bottom: mediaPadding.bottom,
+              ),
+              child: _FavouritesNativeAd(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -259,6 +290,134 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FavouritesNativeAd extends ConsumerWidget {
+  const _FavouritesNativeAd();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final adState = ref.watch(nativeAdProvider);
+    final centralAdState = ref.watch(centralAdManagementProvider);
+
+    final adsList = adState.smallNativeAds;
+    final isLoading = adState.isLoadingSmall;
+    final isLoaded = adState.isSmallLoaded;
+    final isAdTypeLoaded = centralAdState.adLoadStatus['smallNative'] ?? false;
+
+    if (isLoading) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 8),
+        padding: const EdgeInsets.all(10),
+        height: 90,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.colorScheme.outline.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+      );
+    }
+
+    if (adState.errorMessage != null && !isLoaded && adsList.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 8),
+        padding: const EdgeInsets.all(10),
+        height: 90,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.colorScheme.error.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: theme.colorScheme.error,
+                size: 24,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Ad failed to load',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final ad = adsList.isNotEmpty ? adsList.first : null;
+
+    if (!adState.showAds || !isAdTypeLoaded || !isLoaded || adsList.isEmpty || ad == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(
+                Icons.ads_click,
+                size: 12,
+                color: theme.colorScheme.onSurface.withOpacity(0.5),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Advertisement',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 90,
+            width: double.infinity,
+            child: AdWidget(ad: ad),
           ),
         ],
       ),

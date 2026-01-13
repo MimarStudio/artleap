@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/presentation/firebase_analyitcs_singleton/firebase_analtics_singleton.dart';
 import 'package:Artleap.ai/widgets/custom_text/custom_text_widget.dart';
 import 'package:flutter/material.dart';
 import 'sections/about_artleap_contact.dart';
@@ -14,6 +15,7 @@ class AboutArtleapScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    AnalyticsService.instance.logScreenView(screenName: 'About Artleap Screen');
     return Scaffold(
       appBar: _buildAppBar(theme),
       body: SafeArea(

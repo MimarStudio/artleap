@@ -9,7 +9,6 @@ enum SplashState {
   connected,
   noInternet,
   firebaseError,
-  readyToNavigate,
 }
 
 class SplashStateNotifier extends StateNotifier<SplashState> {
@@ -18,44 +17,36 @@ class SplashStateNotifier extends StateNotifier<SplashState> {
   Future<void> initializeApp() async {
     try {
       state = SplashState.checkingConnection;
+
       final connectivityResult = await Connectivity().checkConnectivity();
       if (connectivityResult == ConnectivityResult.none) {
         state = SplashState.noInternet;
         return;
       }
-      state = SplashState.connected;
-      bool firebaseInitialized = await _initializeFirebaseWithRetry();
 
-      if (firebaseInitialized) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        state = SplashState.readyToNavigate;
-      } else {
+      state = SplashState.connected;
+
+      final firebaseOk = await _initializeFirebaseWithRetry();
+      if (!firebaseOk) {
         state = SplashState.firebaseError;
       }
-    } catch (e) {
+    } catch (_) {
       state = SplashState.firebaseError;
-      print(e.toString());
     }
   }
 
   Future<bool> _initializeFirebaseWithRetry() async {
-    int attempts = 0;
     const maxAttempts = 3;
 
-    while (attempts < maxAttempts) {
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        state = SplashState.initializing;
-        await FirebaseMessaging.instance.getToken().timeout(
-          const Duration(seconds: 10),
-          onTimeout: () => throw TimeoutException('Firebase initialization timeout'),
-        );
+        await FirebaseMessaging.instance
+            .getToken()
+            .timeout(const Duration(seconds: 10));
         return true;
-      } catch (e) {
-        attempts++;
-        if (attempts >= maxAttempts) {
-          return false;
-        }
-        await Future.delayed(Duration(seconds: attempts));
+      } catch (_) {
+        if (attempt == maxAttempts) return false;
+        await Future.delayed(Duration(seconds: attempt));
       }
     }
     return false;
@@ -67,6 +58,7 @@ class SplashStateNotifier extends StateNotifier<SplashState> {
   }
 }
 
-final splashStateProvider = StateNotifierProvider<SplashStateNotifier, SplashState>(
+final splashStateProvider =
+StateNotifierProvider<SplashStateNotifier, SplashState>(
       (ref) => SplashStateNotifier(),
 );

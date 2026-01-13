@@ -13,6 +13,7 @@ class NotificationDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    AnalyticsService.instance.logButtonClick(buttonName: 'Notification Details Screen');
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,

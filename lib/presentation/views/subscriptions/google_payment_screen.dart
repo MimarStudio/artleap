@@ -30,6 +30,7 @@ class _GooglePaymentScreenState extends ConsumerState<GooglePaymentScreen> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.logScreenView(screenName: 'Google Payment Screen');
     _isMounted = true;
     _initializeInAppPurchase();
     _listenToPurchaseUpdates();
@@ -131,7 +132,13 @@ class _GooglePaymentScreenState extends ConsumerState<GooglePaymentScreen> {
   Future<void> _handleSubscription() async {
     final paymentMethod = ref.read(selectedPaymentMethodProvider);
     final userId = UserData.ins.userId;
-
+    AnalyticsService.instance.logButtonClick(buttonName: 'Subscription Button Click');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+        eventName: 'subscription_button_clicked(Google Payment Page)',
+        parameters: {
+          'screen': 'Payment_page',
+        });
     if (userId == null) {
       return;
     }
@@ -290,6 +297,12 @@ class _GooglePaymentScreenState extends ConsumerState<GooglePaymentScreen> {
                 title: 'Google Pay',
                 isSelected: selectedPaymentMethod == 'google_play',
                 onTap: () {
+                  final analyticsService = ref.read(analyticsServiceProvider);
+                  analyticsService.logCustomEvent(
+                      eventName: 'google_pay_option_selected(Google Payment Page)',
+                      parameters: {
+                        'screen': 'Payment_page',
+                      });
                   if (_isMounted) {
                     ref.read(selectedPaymentMethodProvider.notifier).state = 'google_play';
                   }
@@ -301,6 +314,12 @@ class _GooglePaymentScreenState extends ConsumerState<GooglePaymentScreen> {
               title: 'Credit/Debit Card',
               isSelected: selectedPaymentMethod == 'stripe',
               onTap: () {
+                final analyticsService = ref.read(analyticsServiceProvider);
+                analyticsService.logCustomEvent(
+                    eventName: 'stripe_pay_option_selected(Google Payment Page)',
+                    parameters: {
+                      'screen': 'Payment_page',
+                    });
                 if (_isMounted) {
                   ref.read(selectedPaymentMethodProvider.notifier).state = 'stripe';
                 }

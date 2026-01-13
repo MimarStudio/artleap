@@ -1,3 +1,4 @@
+import 'package:Artleap.ai/presentation/views/feedback/feedback_dialog.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 class CommunityScreen extends ConsumerStatefulWidget {
@@ -20,8 +21,13 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
       ref.read(favouriteProvider).getUserFav(UserData.ins.userId ?? "");
       ref.read(userProfileProvider.notifier).updateUserCredits();
       ref.read(homeScreenProvider).getUserInfo();
+      AnalyticsService.instance.logScreenView(screenName: 'Community Screen');
     });
 
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await FeedbackNavigationDialogHelper.resetDialogShownState();
+      _showFeedbackDialogAfterDelay();
+    });
     _scrollController.addListener(() {
       final now = DateTime.now();
       if (_lastScrollTime != null &&
@@ -36,6 +42,18 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
         ref.read(homeScreenProvider).loadMoreImages();
       }
     });
+  }
+
+  void _showFeedbackDialogAfterDelay() async {
+    await Future.delayed(const Duration(seconds: 3));
+    if (mounted) {
+      await FeedbackNavigationDialogHelper.checkAndShowFeedbackDialog(
+        context: context,
+        ref: ref,
+        pageUrl: 'community_screen',
+        featurePath: 'home_screen',
+      );
+    }
   }
 
   @override

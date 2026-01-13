@@ -88,7 +88,6 @@ class ArtleapNavigationManager {
       );
 
       await getUserProfile();
-
       if (!context.mounted) return;
 
       final userProfile = getUserProfileData();
@@ -102,6 +101,7 @@ class ArtleapNavigationManager {
         } else if (needsPrivacyPolicy) {
           _navigateToPrivacyPolicyScreen(context);
         } else {
+
           _navigateToHomeScreen(context);
         }
       } else {

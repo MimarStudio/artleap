@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:Artleap.ai/ads/rewarded_ads/rewarded_Ad_helper.dart';
+import 'package:Artleap.ai/presentation/views/feedback/view_feedback_screen.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
+import '../feedback/feedback_submission_screen.dart';
 import 'drawer_components/separator_widget.dart';
 import 'drawer_components/glass_circle_button.dart';
 import 'drawer_components/profile_menu_item.dart';
@@ -28,6 +30,7 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      AnalyticsService.instance.logScreenView(screenName: 'Drawer');
       ref.read(userProfileProvider.notifier).getUserProfileData(UserData.ins.userId ?? "");
     });
   }
@@ -84,19 +87,27 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
   }
 
   Widget _buildContent(BuildContext context, ThemeData theme, bool isDark, Size screenSize, double iconSize, bool isFreePlan) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildCloseButton(context, iconSize, theme),
-          _buildProfileHeader(context, theme, isDark, screenSize),
-          if (isFreePlan) _buildUpgradeBanner(screenSize),
-          10.spaceY,
-          _buildGeneralSection(context, theme, screenSize, isFreePlan),
-          10.spaceY,
-          _buildAboutSection(context, theme, screenSize),
-          _buildBottomSection(context, theme, isDark, screenSize),
-        ],
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      height: screenSize.height - bottomPadding,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCloseButton(context, iconSize, theme),
+            _buildProfileHeader(context, theme, isDark, screenSize),
+            if (isFreePlan) _buildUpgradeBanner(screenSize),
+            10.spaceY,
+            _buildGeneralSection(context, theme, screenSize, isFreePlan),
+            10.spaceY,
+            _buildAboutSection(context, theme, screenSize),
+            _buildSupportSection(context, theme, screenSize), // NEW SECTION
+            10.spaceY,
+            _buildBottomSection(context, theme, isDark, screenSize),
+            SizedBox(height: 80),
+          ],
+        ),
       ),
     );
   }
@@ -216,6 +227,12 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
             onTap: () => Navigator.pushNamed(context, FavouritesScreen.routeName),
             theme: theme,
           ),
+          ProfileMenuItem(
+            icon: FeatherIcons.messageCircle,
+            title: "View Your Feedback",
+            onTap: () => _viewFeedbackScreen(context),
+            theme: theme,
+          ),
           ThemeSelectorMenuItem(
             theme: theme,
             currentTheme: ref.watch(themeProvider),
@@ -251,15 +268,34 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
             theme: theme,
           ),
           ProfileMenuItem(
+            icon: FeatherIcons.info,
+            title: "About Artleap",
+            onTap: () => _navigateTo(context, '/about-artleap'),
+            theme: theme,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // NEW SECTION: Support Section
+  Widget _buildSupportSection(BuildContext context, ThemeData theme, Size screenSize) {
+    return Padding(
+      padding: EdgeInsets.only(left: screenSize.width * 0.05, top: 16),
+      child: _buildSection(
+        context,
+        title: "Support",
+        items: [
+          ProfileMenuItem(
             icon: FeatherIcons.helpCircle,
             title: "Help Center",
             onTap: () => _navigateTo(context, '/help-screen'),
             theme: theme,
           ),
           ProfileMenuItem(
-            icon: FeatherIcons.info,
-            title: "About Artleap",
-            onTap: () => _navigateTo(context, '/about-artleap'),
+            icon: FeatherIcons.messageCircle,
+            title: "Send Feedback",
+            onTap: () => _openFeedbackScreen(context),
             theme: theme,
           ),
         ],
@@ -328,8 +364,58 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
   }
 
   void _navigateTo(BuildContext context, String routeName) {
+    AnalyticsService.instance.logButtonClick(buttonName: 'Drawer $routeName Button');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+        eventName: 'Drawer $routeName Button_clicked',
+        parameters: {
+          'screen': 'drawer_screen',
+        });
     Navigator.pop(context);
     Navigator.pushNamed(context, routeName);
+  }
+
+  void _openFeedbackScreen(BuildContext context) {
+    AnalyticsService.instance.logButtonClick(buttonName: 'Drawer Feedback Button');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+      eventName: 'Feedback_button_clicked',
+      parameters: {
+        'screen': 'drawer_screen',
+        'source': 'drawer_menu',
+      },
+    );
+
+    Navigator.pop(context); // Close drawer
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FeedbackSubmissionScreen(
+          pageUrl: '/drawer',
+          featurePath: 'profile_drawer',
+        ),
+      ),
+    );
+  }
+
+  void _viewFeedbackScreen(BuildContext context) {
+    AnalyticsService.instance.logButtonClick(buttonName: 'Drawer Feedback Button');
+    final analyticsService = ref.read(analyticsServiceProvider);
+    analyticsService.logCustomEvent(
+      eventName: 'view_feedback_button_clicked',
+      parameters: {
+        'screen': 'drawer_screen',
+        'source': 'drawer_menu',
+      },
+    );
+
+    Navigator.pop(context); 
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UserFeedbackListScreen(),
+      ),
+    );
   }
 
   void _showLogoutDialog(BuildContext context) {
@@ -340,6 +426,13 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
       message: 'You\'re about to logout from your account. Are you sure you want to continue?',
       confirmText: 'Logout',
       onConfirm: () {
+        AnalyticsService.instance.logButtonClick(buttonName: 'Drawer Logout Button');
+        final analyticsService = ref.read(analyticsServiceProvider);
+        analyticsService.logCustomEvent(
+            eventName: 'Logout_button_clicked',
+            parameters: {
+              'screen': 'drawer_screen',
+            });
         AppLocal.ins.clearUSerData(Hivekey.userId);
         Navigation.pushNamedAndRemoveUntil(LoginScreen.routeName);
       },
@@ -354,6 +447,13 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
       message: 'Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be lost.',
       confirmText: 'Delete Account',
       onConfirm: () {
+        AnalyticsService.instance.logButtonClick(buttonName: 'Drawer Delete Account Button');
+        final analyticsService = ref.read(analyticsServiceProvider);
+        analyticsService.logCustomEvent(
+            eventName: 'Delete_account_Button_clicked',
+            parameters: {
+              'screen': 'drawer_screen',
+            });
         ref.read(userProfileProvider.notifier).deActivateAccount(UserData.ins.userId!);
       },
     );
