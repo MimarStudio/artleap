@@ -13,65 +13,50 @@ class BannerAdWidget extends ConsumerStatefulWidget {
 }
 
 class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
-  BannerAd? _localBannerAd;
-  bool _isLoaded = false;
+  bool _loadRequested = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _createLocalBanner();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_loadRequested) return;
+    _loadRequested = true;
+    Future.microtask(() {
+      ref.read(centralAdManagementProvider.notifier).ensureBannerLoaded(collapsible: false);
     });
-  }
-
-  Future<void> _createLocalBanner() async {
-    final config = ref.read(remoteConfigProvider);
-    if (!config.showBannerAds) return;
-
-    final width =
-    MediaQuery.of(context).size.width.truncate();
-
-    final size =
-    await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(width);
-
-    if (!mounted || size == null) return;
-
-    _localBannerAd = BannerAd(
-      adUnitId: config.bannerAdUnit,
-      size: size,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (_) {
-          if (mounted) {
-            setState(() => _isLoaded = true);
-          }
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-        },
-      ),
-    );
-
-    await _localBannerAd!.load();
-  }
-
-  @override
-  void dispose() {
-    _localBannerAd?.dispose();
-    _localBannerAd = null;
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_isLoaded || _localBannerAd == null) {
-      return const SizedBox(height: 50);
+    final bannerState = ref.watch(bannerAdStateProvider);
+    final config = ref.watch(remoteConfigProvider);
+
+    if (!config.showBannerAds) {
+      return const SizedBox.shrink();
     }
 
-    return SizedBox(
-      width: _localBannerAd!.size.width.toDouble(),
-      height: _localBannerAd!.size.height.toDouble(),
-      child: AdWidget(ad: _localBannerAd!),
-    );
+    final isBannerReady = bannerState.isLoaded && bannerState.bannerAd != null &&
+        bannerState.adLoaded && !bannerState.isCollapsible;
+
+
+    if (isBannerReady) {
+      return SizedBox(
+        width: bannerState.adSize.width.toDouble(),
+        height: bannerState.adSize.height.toDouble(),
+        child: AdWidget(ad: bannerState.bannerAd!),
+      );
+    }
+
+    if (bannerState.isLoading) {
+      return const SizedBox(
+        width: 320,
+        height: 50,
+        child: Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    return const SizedBox(height: 50);
   }
 }

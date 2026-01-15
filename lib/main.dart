@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:Artleap.ai/presentation/views/feedback/feedback_dialog.dart';
 import 'package:Artleap.ai/shared/theme/app_theme.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
@@ -7,6 +8,14 @@ import 'remote_config/force_update/force_update_wrapper.dart';
 void main() {
   runZonedGuarded<Future<void>>(() async {
     WidgetsFlutterBinding.ensureInitialized();
+
+    if (Platform.isIOS) {
+      final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+      if (status == TrackingStatus.notDetermined) {
+        await AppTrackingTransparency.requestTrackingAuthorization();
+      }
+    }
+
     await AppInitialization.initialize();
     await FeedbackNavigationDialogHelper.resetDialogShownState();
     runApp(
@@ -14,7 +23,7 @@ void main() {
         overrides: [
           notificationServiceProvider.overrideWith((ref) => NotificationService(ref)),
         ],
-        child: AppKeyboardListener(child: const CentralAdWrapper(child: MyApp()),),
+        child: AppKeyboardListener(child: const  MyApp()),
       ),
     );
   }, (error, stack) {
@@ -54,10 +63,6 @@ class _MyAppState extends ConsumerState<MyApp> {
 
 
   Future<void> _initializeApp() async {
-    final status = await AppTrackingTransparency.trackingAuthorizationStatus;
-    if (status == TrackingStatus.notDetermined) {
-      await AppTrackingTransparency.requestTrackingAuthorization();
-    }
     await AppInitialization.initializeAuthAndNotifications(ref);
     _refreshTokenTimer = Timer.periodic(const Duration(hours: 1), (_) async {
       final refreshedToken = await ref.read(authprovider).ensureValidFirebaseToken();
@@ -97,8 +102,10 @@ class _MyAppState extends ConsumerState<MyApp> {
       onGenerateRoute: RouteGenerator.generateRoute,
       initialRoute: SplashScreen.routeName,
       builder: (context, child) {
-        return ConnectivityOverlay(
+        return CentralAdWrapper(child:
+        ConnectivityOverlay(
           child: child ?? const SizedBox.shrink(),
+        ),
         );
       },
     );

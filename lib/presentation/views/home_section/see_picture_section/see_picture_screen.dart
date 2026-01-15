@@ -1,4 +1,3 @@
-import 'package:Artleap.ai/ads/ad_services/ad_instance_manager.dart';
 import 'package:Artleap.ai/shared/route_export.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -98,7 +97,6 @@ class _SeePictureScreenState extends ConsumerState<SeePictureScreen> {
 
   @override
   void dispose() {
-    AdInstanceManager().clearInstancesForScreen(SeePictureScreen.routeName);
     super.dispose();
   }
 

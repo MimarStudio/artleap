@@ -131,12 +131,9 @@ export 'package:Artleap.ai/remote_config/remote_config_service.dart';
 export 'package:google_mobile_ads/google_mobile_ads.dart';
 export 'package:Artleap.ai/ads/ad_services/ads_service.dart';
 export 'package:Artleap.ai/ads/app_open_ads/app_open_ad_manager.dart';
-export 'package:Artleap.ai/ads/interstitial_ads/interstitial_ad_manager.dart';
 export 'package:Artleap.ai/ads/rewarded_ads/rewarded_ad_manager.dart';
-export 'package:Artleap.ai/ads/banner_ads/banner_ad_manager.dart';
 export 'package:Artleap.ai/ads/ad_services/ad_provider.dart';
 export 'package:Artleap.ai/ads/banner_ads/banner_ad_state_provider.dart';
-export 'package:Artleap.ai/ads/native_ads/native_ad_manager.dart';
 export 'package:Artleap.ai/providers/interest_onboarding_provider.dart';
 export 'package:Artleap.ai/widgets/common/progress_bar.dart';
 export 'package:Artleap.ai/ads/native_ads/native_ads_state_provider.dart';
@@ -191,5 +188,4 @@ export 'package:Artleap.ai/ads/banner_ads/banner_ad_widget.dart';
 export 'package:Artleap.ai/presentation/views/interest_onboarding_screens/components/contionus_button.dart';
 export 'package:Artleap.ai/ads/ad_services/central_ad_management.dart';
 
-export 'package:Artleap.ai/ads/native_ads/smart_native_ad_widget.dart';
 export 'package:Artleap.ai/domain/custom_events/firebase_analytics_service.dart';

@@ -56,11 +56,13 @@ class RemoteConfigService {
         'android_show_app_open_ads': true,
 
         // iOS Ad Units
-        'ios_banner_ad_unit': 'ca-app-pub-9762893813732933/7884426110',
-        'ios_interstitial_ad_unit': 'ca-app-pub-3940256099942544/4411468910',
-        'ios_rewarded_ad_unit': 'ca-app-pub-3940256099942544/1712485313',
-        'ios_native_ad_unit': 'ca-app-pub-3940256099942544/3986624511',
-        'ios_app_open_ad_unit': '/21775744923/example/app-open',
+        'ios_banner_ad_unit': 'ca-app-pub-3940256099942544/2934735716',
+        'ios_interstitial_ad_unit': 'ca-app-pub-9762893813732933/5116337136',
+        'ios_rewarded_ad_unit': 'ca-app-pub-9762893813732933/2822836977',
+        'ios_native_ad_unit': 'ca-app-pub-9762893813732933/6669091953',
+        'ios_app_open_ad_unit': 'ca-app-pub-3940256099942544/5662855259',
+
+
 
         // iOS Ad Toggles
         'ios_show_banner_ads': true,
