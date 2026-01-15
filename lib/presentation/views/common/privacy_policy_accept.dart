@@ -179,7 +179,7 @@ class _AcceptPrivacyPolicyScreenState
                   ),
                 ),
               ),
-              SizedBox(height: screenHeight * 0.13),
+              SizedBox(height: screenHeight * 0.1),
               Text(
                 'With AI at your fingertips, every\nidea transforms into a stunning\nmasterpiece',
                 style: TextStyle(
@@ -278,7 +278,7 @@ class _AcceptPrivacyPolicyScreenState
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               BannerAdWidget(uniqueScreenKey: '/privacy-policy'),
             ],
           ),

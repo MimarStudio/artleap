@@ -102,9 +102,8 @@ class NativeAdPostWidget extends ConsumerWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   onPressed: () {
-                    // Dispose only the specific ad type
                     if (isMediumAd) {
-                      ref.read(nativeAdProvider.notifier).disposeMediumAds();
+                      onAdDisposed();
                     } else {
                       ref.read(nativeAdProvider.notifier).disposeSmallAds();
                     }

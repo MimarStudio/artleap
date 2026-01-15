@@ -305,10 +305,7 @@ class _FeedbackNavigationDialogState extends ConsumerState<FeedbackNavigationDia
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 24),
-
-                    // Title
+                    const SizedBox(height: 15),
                     Center(
                       child: AppText.headingSmall(
                         'Share Your Thoughts',
@@ -319,17 +316,6 @@ class _FeedbackNavigationDialogState extends ConsumerState<FeedbackNavigationDia
 
                     const SizedBox(height: 12),
 
-                    // Subtitle
-                    Center(
-                      child: AppText.bodySmall(
-                        'We\'d love to hear your feedback to improve Artleap.ai',
-                        color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
-                        align: TextAlign.center,
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-
                     // Benefits List
                     _buildBenefitItem(
                       icon: Icons.star_outline,
@@ -337,25 +323,6 @@ class _FeedbackNavigationDialogState extends ConsumerState<FeedbackNavigationDia
                       description: 'Your feedback directly impacts future updates',
                       theme: theme,
                     ),
-
-                    const SizedBox(height: 16),
-
-                    _buildBenefitItem(
-                      icon: Icons.bolt_outlined,
-                      title: 'Shape New Features',
-                      description: 'Tell us what features you\'d like to see',
-                      theme: theme,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    _buildBenefitItem(
-                      icon: Icons.flag_outlined,
-                      title: 'Report Issues',
-                      description: 'Help us identify and fix problems',
-                      theme: theme,
-                    ),
-
                     const SizedBox(height: 32),
 
                     // Primary Action Button

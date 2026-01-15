@@ -21,10 +21,6 @@ final appOpenAdProvider = Provider<AppOpenAdManager>((ref) {
   return AppOpenAdManager.instance;
 });
 
-final bannerAdManagerProvider = Provider<BannerAdManager>((ref) {
-  return BannerAdManager();
-});
-
 final adInitializationProvider = FutureProvider<void>((ref) async {
   final adService = ref.read(adServiceProvider);
   await adService.initialize();

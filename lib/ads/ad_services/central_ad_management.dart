@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:Artleap.ai/shared/route_export.dart';
 
 final centralAdManagementProvider = StateNotifierProvider<CentralAdManagementNotifier, CentralAdManagementState>((ref) {
@@ -73,17 +74,32 @@ class CentralAdManagementNotifier extends StateNotifier<CentralAdManagementState
   AppOpenAdManager? _appOpenAdManager;
   Timer? _adRefreshTimer;
   WidgetRef? _cachedWidgetRef;
+  bool _initStarted = false;
+  final Map<String, DateTime> _cooldownUntil = {};
 
   CentralAdManagementNotifier(this.ref) : super(CentralAdManagementState()) {
+    // _initialize();
   }
 
-  void setWidgetRef(WidgetRef widgetRef) {
-    if (!_isDisposed) {
-      _cachedWidgetRef = widgetRef;
-      if (!state.isInitialized) {
-        _initialize();
-      }
-    }
+  int _cooldownSeconds(String adType) {
+    // iOS needs longer cooldowns
+    if (Platform.isIOS) return 60;
+    return 15;
+  }
+
+  void adLog(String message) {
+    debugPrint('📢 [CENTRAL_ADS] $message');
+  }
+
+
+  bool _inCooldown(String adType) {
+    final until = _cooldownUntil[adType];
+    if (until == null) return false;
+    return DateTime.now().isBefore(until);
+  }
+
+  void _setCooldown(String adType) {
+    _cooldownUntil[adType] = DateTime.now().add(Duration(seconds: _cooldownSeconds(adType)));
   }
 
   Future<void> _initialize() async {
@@ -95,13 +111,24 @@ class CentralAdManagementNotifier extends StateNotifier<CentralAdManagementState
 
       if (!_isDisposed) {
         state = state.copyWith(isInitialized: true);
+        _startAdRefreshTimer();
       }
     } catch (e) {
-      Future.delayed(Duration(seconds: 5), () {
-        if (!_isDisposed) {
-          _initialize();
-        }
+      Future.delayed(const Duration(seconds: 5), () {
+        if (!_isDisposed) _initialize();
       });
+    }
+  }
+
+
+  void setWidgetRef(WidgetRef widgetRef) {
+    if (_isDisposed) return;
+
+    _cachedWidgetRef = widgetRef;
+
+    if (!_initStarted) {
+      _initStarted = true;
+      _initialize();
     }
   }
 
@@ -144,12 +171,23 @@ class CentralAdManagementNotifier extends StateNotifier<CentralAdManagementState
     if (_isDisposed) return;
 
     try {
-      await Future.wait([
-        loadAppOpenAd(),
-        loadInterstitialAd(),
-        loadSmallNativeAds(),
-        loadCollapsibleBannerAd(),
-      ]);
+      if(Platform.isIOS){
+        await Future.wait([
+          loadAppOpenAd(),
+          loadInterstitialAd(),
+          loadSmallNativeAds(),
+          loadRewardedAd(),
+        ]);
+      } else {
+        await Future.wait([
+          loadAppOpenAd(),
+          loadRewardedAd(),
+          loadInterstitialAd(),
+          loadSmallNativeAds(),
+          loadBannerAd(),
+          loadCollapsibleBannerAd(),
+        ]);
+      }
     } catch (e) {
     }
   }
@@ -267,19 +305,17 @@ class CentralAdManagementNotifier extends StateNotifier<CentralAdManagementState
 
     try {
       final currentBannerState = _cachedWidgetRef!.read(bannerAdStateProvider);
-      final shouldLoad = forceReload || !currentBannerState.isLoaded || !currentBannerState.adLoaded;
+      final shouldLoad = forceReload || !currentBannerState.isLoaded || !currentBannerState.adLoaded || currentBannerState.isCollapsible;
 
       if (!shouldLoad) {
         return;
       }
 
       if (currentBannerState.isLoaded) {
-        _cachedWidgetRef!.read(bannerAdStateProvider.notifier).dispose();
+        _cachedWidgetRef!.read(bannerAdStateProvider.notifier).disposeBanner();
       }
 
-      await _cachedWidgetRef!.read(bannerAdStateProvider.notifier).initializeBannerAd(
-        isCollapsible: false,
-      );
+      await _cachedWidgetRef!.read(bannerAdStateProvider.notifier).loadBannerAd(isCollapsible: false);
 
       if (!_isDisposed) {
         final newStatus = Map<String, bool>.from(state.adLoadStatus);
@@ -316,12 +352,10 @@ class CentralAdManagementNotifier extends StateNotifier<CentralAdManagementState
       }
 
       if (currentBannerState.isLoaded) {
-        _cachedWidgetRef!.read(bannerAdStateProvider.notifier).dispose();
+        _cachedWidgetRef!.read(bannerAdStateProvider.notifier).disposeBanner();
       }
 
-      await _cachedWidgetRef!.read(bannerAdStateProvider.notifier).initializeBannerAd(
-        isCollapsible: true,
-      );
+      await _cachedWidgetRef!.read(bannerAdStateProvider.notifier).loadBannerAd(isCollapsible: true);
 
       if (!_isDisposed) {
         final newStatus = Map<String, bool>.from(state.adLoadStatus);
@@ -485,6 +519,52 @@ class CentralAdManagementNotifier extends StateNotifier<CentralAdManagementState
     }
   }
 
+  void onBannerAdLoaded({bool isCollapsible = false, String? adId}) {
+    if (_isDisposed) return;
+
+    final adType = isCollapsible ? 'collapsibleBanner' : 'banner';
+
+    final newStatus = Map<String, bool>.from(state.adLoadStatus);
+    newStatus[adType] = true;
+
+    state = state.copyWith(adLoadStatus: newStatus);
+  }
+
+  void onBannerAdFailed({bool isCollapsible = false, AdError? error}) {
+    if (_isDisposed) return;
+
+    final adType = isCollapsible ? 'collapsibleBanner' : 'banner';
+
+    final newStatus = Map<String, bool>.from(state.adLoadStatus);
+    newStatus[adType] = false;
+
+    state = state.copyWith(adLoadStatus: newStatus);
+
+    _scheduleRetry(adType);
+  }
+
+  Future<void> ensureBannerLoaded({bool collapsible = false}) async {
+    if (_isDisposed || _cachedWidgetRef == null) return;
+    final key = collapsible ? 'collapsibleBanner' : 'banner';
+    if (state.adLoadStatus[key] == true) return;
+    if (_inCooldown(key)) return;
+
+    if (collapsible) {
+      await loadCollapsibleBannerAd(forceReload: true);
+    } else {
+      await loadBannerAd(forceReload: true);
+    }
+  }
+
+
+  void onAdShown() {
+    if (_isDisposed) return;
+
+    state = state.copyWith(
+      lastAdShownTime: DateTime.now(),
+    );
+  }
+
   Future<void> forceReloadBanner({bool isCollapsible = false}) async {
     if (_isDisposed) return;
     if (isCollapsible) {
@@ -496,25 +576,22 @@ class CentralAdManagementNotifier extends StateNotifier<CentralAdManagementState
     }
   }
 
-  void _markAdAsUsed(String adType) {
+  void _markAdAsUsed(String adType, {bool clearRequestTime = false}) {
     if (_isDisposed) return;
 
     final newStatus = Map<String, bool>.from(state.adLoadStatus);
-    final newRequestTimes = Map<String, DateTime?>.from(state.lastAdRequestTime);
+    final newTimes = Map<String, DateTime?>.from(state.lastAdRequestTime);
 
     newStatus[adType] = false;
-    newRequestTimes[adType] = null;
+    if (clearRequestTime) newTimes[adType] = null;
 
-    state = state.copyWith(
-      adLoadStatus: newStatus,
-      lastAdRequestTime: newRequestTimes,
-    );
+    state = state.copyWith(adLoadStatus: newStatus, lastAdRequestTime: newTimes);
   }
+
 
   void reloadAd(String adType, {bool isCollapsible = false}) {
     if (_isDisposed) return;
-
-    _markAdAsUsed(adType);
+    _markAdAsUsed(adType, clearRequestTime: false);
 
     switch (adType) {
       case 'appOpen':
@@ -561,35 +638,38 @@ class CentralAdManagementNotifier extends StateNotifier<CentralAdManagementState
   }
 
   bool _shouldLoadAd(String adType) {
+    if (_cachedWidgetRef == null) return false;
+
+    // ✅ hard cooldown
+    if (_inCooldown(adType)) return false;
+
     final showAds = _getAdEnabledStatus(adType);
+    if (!showAds) return false;
+
     final isAlreadyLoaded = state.adLoadStatus[adType] ?? false;
+    if (isAlreadyLoaded) return false;
+
     final lastRequestTime = state.lastAdRequestTime[adType];
-
-    if (!showAds) {
-      return false;
-    }
-
-    if (isAlreadyLoaded) {
-      return false;
-    }
-
     if (lastRequestTime != null) {
-      final secondsSinceLastRequest = DateTime.now().difference(lastRequestTime).inSeconds;
-      if (secondsSinceLastRequest < 10) {
-        return false;
-      }
+      final seconds = DateTime.now().difference(lastRequestTime).inSeconds;
+      if (seconds < _cooldownSeconds(adType)) return false;
     }
 
     return true;
   }
 
+
   void _scheduleRetry(String adType) {
-    Future.delayed(Duration(seconds: 30), () {
-      if (!_isDisposed) {
-        reloadAd(adType);
-      }
+    if (_isDisposed) return;
+    _setCooldown(adType);
+
+    Future.delayed(Duration(seconds: _cooldownSeconds(adType)), () {
+      if (_isDisposed) return;
+      if (_inCooldown(adType)) return;
+      reloadAd(adType);
     });
   }
+
 
   bool _canShowAd() {
     if (state.isShowingAd) {
@@ -673,7 +753,6 @@ class CentralAdManagementNotifier extends StateNotifier<CentralAdManagementState
   }
 
   @override
-  @override
   void dispose() {
     _isDisposed = true;
     _adRefreshTimer?.cancel();
@@ -705,8 +784,6 @@ class CentralAdWrapper extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.read(centralAdManagementProvider.notifier).setWidgetRef(ref);
-    final adState = ref.watch(centralAdManagementProvider);
     return child;
   }
-
 }

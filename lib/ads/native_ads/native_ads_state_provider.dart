@@ -78,6 +78,13 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     await _loadMediumAds(5);
   }
 
+  Future<void> preloadInitialMediumAds() async {
+    if (state.mediumNativeAds.isEmpty) {
+      await loadMoreMediumAds(5);
+    }
+  }
+
+
   Future<void> _loadSmallAds(int adCount) async {
     final config = RemoteConfigService.instance;
 
@@ -188,6 +195,59 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     }
   }
 
+  Future<void> loadMoreMediumAds(int count) async {
+    final config = RemoteConfigService.instance;
+
+    if (!config.showNativeAds || state.isLoadingMedium) return;
+
+    state = state.copyWith(isLoadingMedium: true);
+
+    final List<NativeAd> newAds = [];
+    final List<bool> ready = [];
+
+    int completed = 0;
+
+    for (int i = 0; i < count; i++) {
+      final ad = NativeAd(
+        adUnitId: config.nativeAdUnit,
+        request: const AdRequest(),
+        nativeTemplateStyle: NativeTemplateStyle(
+          templateType: TemplateType.medium,
+          cornerRadius: 12,
+        ),
+        listener: NativeAdListener(
+          onAdLoaded: (ad) {
+            newAds.add(ad as NativeAd);
+            ready.add(true);
+            completed++;
+
+            if (completed == count) {
+              state = state.copyWith(
+                mediumNativeAds: [...state.mediumNativeAds, ...newAds],
+                mediumAdReadyStatus: [
+                  ...state.mediumAdReadyStatus,
+                  ...ready
+                ],
+                isLoadingMedium: false,
+                isMediumLoaded: true,
+              );
+            }
+          },
+          onAdFailedToLoad: (ad, error) {
+            ad.dispose();
+            completed++;
+
+            if (completed == count) {
+              state = state.copyWith(isLoadingMedium: false);
+            }
+          },
+        ),
+      );
+
+      ad.load();
+    }
+  }
+
   void _updateSmallAdFinalStateIfDone(
       List<NativeAd?> ads,
       List<bool> ready,
@@ -249,14 +309,9 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
     return false;
   }
 
-  bool isMediumAdReady(int index) {
-    if (index >= 0 &&
-        index < state.mediumNativeAds.length &&
-        index < state.mediumAdReadyStatus.length) {
-      return state.mediumAdReadyStatus[index];
-    }
-    return false;
-  }
+  bool isMediumAdReady(int index) =>
+      index < state.mediumAdReadyStatus.length &&
+          state.mediumAdReadyStatus[index];
 
   Future<void> loadInitialAd() async {
     final config = RemoteConfigService.instance;
@@ -342,6 +397,7 @@ class NativeAdNotifier extends StateNotifier<NativeAdState> {
       isLoadingMedium: false,
     );
   }
+
 
   void safeDisposeAds() {
     for (var ad in state.smallNativeAds) {

@@ -155,6 +155,12 @@ class _PlanListContentState extends ConsumerState<PlanListContent> {
           if (selectedPlan == null) return;
           final route = Platform.isIOS ? ApplePaymentScreen.routeName : GooglePaymentScreen.routeName;
           Navigator.pushNamed(context, route, arguments: selectedPlan);
+          final analyticsService = ref.read(analyticsServiceProvider);
+          analyticsService.logCustomEvent(
+              eventName: 'Subscribe Button clicked (Choose Plan Screen)',
+              parameters: {
+                'screen': 'choose_plan_screen',
+              });
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFAF8B47),

@@ -148,7 +148,7 @@ class HomeScreenTopBar extends ConsumerWidget {
                     ),
                   ),
                 ],
-              ), isFreePlan ? _buildProfessionalProButton(screenWidth, context, theme) : _buildPlanBadge(planName, screenWidth, theme),
+              ), isFreePlan ? _buildProfessionalProButton(screenWidth, context, theme,ref) : _buildPlanBadge(planName, screenWidth, theme),
             ],
           ),
         ),
@@ -159,7 +159,7 @@ class HomeScreenTopBar extends ConsumerWidget {
 
 
   Widget _buildProfessionalProButton(
-      double screenWidth, BuildContext context, ThemeData theme) {
+      double screenWidth, BuildContext context, ThemeData theme,WidgetRef ref) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -175,8 +175,13 @@ class HomeScreenTopBar extends ConsumerWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            Navigator.of(context)
-                .pushNamed("choose_plan_screen");
+            final analyticsService = ref.read(analyticsServiceProvider);
+            analyticsService.logCustomEvent(
+                eventName: 'Upgrade_to_Pro_Button(topbar)',
+                parameters: {
+                  'screen': 'topbar',
+                });
+            Navigator.of(context).pushNamed("choose_plan_screen");
           },
           borderRadius: BorderRadius.circular(20),
           child: Container(

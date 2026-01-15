@@ -50,7 +50,6 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
       }
 
       if (RemoteConfigService.instance.showNativeAds) {
-        // Load multiple medium ads for the feed
         _nativeAdNotifier.loadMultipleNativeAds();
       }
     });
@@ -165,6 +164,29 @@ class _CommunityFeedWidgetState extends ConsumerState<CommunityFeedWidget> {
     if (homeProvider.usersData == null) {
       return _buildLoadingShimmer();
     }
+
+    if (RemoteConfigService.instance.showNativeAds) {
+      final requiredAds =
+      (displayedImages.length / _adFrequency).floor();
+
+      final availableAds =
+          ref.read(nativeAdProvider).mediumNativeAds.length;
+
+      if (availableAds < requiredAds) {
+        Future.microtask(() {
+          if (!mounted) return;
+
+          ref
+              .read(nativeAdProvider.notifier)
+              .loadMoreMediumAds(requiredAds - availableAds);
+        });
+      }
+    }
+
+    debugPrint(
+        '🟢 POSTS=${displayedImages.length} | ADS=${ref.read(nativeAdProvider).mediumNativeAds.length}'
+    );
+
 
     final itemsWithAds = _getItemsWithAds(displayedImages);
 
